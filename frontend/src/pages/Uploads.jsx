@@ -263,6 +263,21 @@ export default function Uploads() {
               </div>
             )}
           </div>
+          {uploadResult.stats && uploadResult.stats.skipped_rows_count > 0 && (
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+                 ملاحظات الرفع (تم تجاهل {uploadResult.stats.skipped_rows_count} صف غير معتمد):
+               </div>
+               <ul style={{ fontSize: '0.75rem', color: 'var(--accent)', margin: 0, paddingRight: 20 }}>
+                 {uploadResult.stats.skipped_reasons && uploadResult.stats.skipped_reasons.slice(0, 5).map((r, idx) => (
+                   <li key={idx}>{r.replace('Skipped non-lab room:', 'تم تجاهل قاعة غير مخبرية (عادية):')}</li>
+                 ))}
+                 {uploadResult.stats.skipped_reasons?.length > 5 && (
+                   <li>... و {uploadResult.stats.skipped_reasons.length - 5} ملاحظات أخرى</li>
+                 )}
+               </ul>
+            </div>
+          )}
         </div>
       )}
 

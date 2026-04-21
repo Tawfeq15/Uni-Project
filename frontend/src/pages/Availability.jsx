@@ -22,7 +22,7 @@ const LAB_INFO = {
   '2104': { capacity: 26, building: 'المكتبة', floor: '1' },
   '2105': { capacity: 26, building: 'المكتبة', floor: '1' },
   '2106': { capacity: 26, building: 'المكتبة', floor: '1' },
-  '2107': { capacity: 35, building: 'المكتبة', floor: '1' },
+  '2107': { capacity: 36, building: 'المكتبة', floor: '1' }, // Note: capacity is 36
   '7325': { capacity: 24, building: 'IT', floor: '3' },
   '7416': { capacity: 24, building: 'IT', floor: '4' },
   '7417': { capacity: 20, building: 'IT', floor: '4' },
@@ -36,11 +36,13 @@ const LAB_INFO = {
 };
 
 // Time bar: 8:00 to 16:00
-function TimeBar({ occupied, free }) {
+function TimeBar({ occupied, free, day }) {
   const START = 8 * 60;
   const END = 16 * 60;
   const SPAN = END - START;
   const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16];
+
+  const minDuration = (day === 'monday' || day === 'wednesday') ? 90 : 60;
 
   function pct(minutes) {
     return Math.max(0, Math.min(100, ((minutes - START) / SPAN) * 100));
@@ -67,18 +69,19 @@ function TimeBar({ occupied, free }) {
         ))}
       </div>
       <div style={{ position: 'relative', height: 18, background: 'var(--bg-hover)', borderRadius: 4, overflow: 'hidden' }}>
-        {/* Free slots (green) */}
+        {/* Free slots (green or dim for short) */}
         {free.map((f, i) => {
           const s = toMin(f.start), e = toMin(f.end);
+          const isShort = (e - s) < minDuration;
           return (
             <div key={i} style={{
               position: 'absolute',
               right: `${pct(s)}%`,
               width: `${pct(e) - pct(s)}%`,
               top: 0, bottom: 0,
-              background: 'var(--success)',
-              opacity: 0.7,
-            }} title={`متاح: ${f.start} – ${f.end}`} />
+              background: isShort ? '#4b5563' : 'var(--success)',
+              opacity: isShort ? 0.4 : 0.7,
+            }} title={`متاح: ${f.start} - ${f.end}`} />
           );
         })}
         {/* Occupied (red) */}
@@ -92,7 +95,7 @@ function TimeBar({ occupied, free }) {
               top: 0, bottom: 0,
               background: 'var(--danger)',
               opacity: 0.7,
-            }} title={`محاضرة: ${o.start} – ${o.end}`} />
+            }} title={`محاضرة: ${o.start} - ${o.end}`} />
           );
         })}
       </div>
@@ -161,8 +164,8 @@ export default function Availability() {
     slotsByRoom[key].days[slot.day].push(slot);
   }
 
-  // All known labs: merge rooms from DB with slot data
-  const allRooms = [...new Set([...rooms.map(r => r.room_name), ...Object.keys(slotsByRoom)])].sort();
+  // All known labs: only the ones defined explicitly by the user in LAB_INFO
+  const allRooms = Object.keys(LAB_INFO).sort();
 
   return (
     <div className="page">
@@ -389,7 +392,7 @@ function LabCard({ roomName, capacity, faculty, info, slotData, hasSlots, loadRo
                   {/* Timeline */}
                   {details ? (
                     details.free.length > 0 ? (
-                      <TimeBar occupied={details.occupied} free={details.free} />
+                      <TimeBar occupied={details.occupied} free={details.free} day={day} />
                     ) : (
                       <div style={{ height: 24, background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)', fontSize: '0.8rem', fontWeight: 600 }}>
                         ❌ مشغول بالكامل (لا توجد فترات حرة تتسع لامتحان)
@@ -403,20 +406,24 @@ function LabCard({ roomName, capacity, faculty, info, slotData, hasSlots, loadRo
 
                   {/* Free slots chips */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                    {daySlots.map((slot, i) => (
-                      <div key={i} style={{
-                        background: 'var(--success-bg)',
-                        border: '1px solid rgba(34,197,94,0.25)',
-                        borderRadius: 6,
-                        padding: '4px 12px',
-                        fontSize: '0.78rem',
-                        color: 'var(--success)',
-                        fontWeight: 600,
-                      }}>
-                        🕐 {slot.available_from} – {slot.available_to}
-                        <span style={{ opacity: 0.7, marginRight: 4 }}>({slot.duration_minutes}د)</span>
-                      </div>
-                    ))}
+                    {daySlots.map((slot, i) => {
+                      const minDuration = (day === 'monday' || day === 'wednesday') ? 90 : 60;
+                      const isShort = slot.duration_minutes < minDuration;
+                      return (
+                        <div key={i} style={{
+                          background: isShort ? 'var(--bg-secondary)' : 'var(--success-bg)',
+                          border: isShort ? '1px solid var(--border)' : '1px solid rgba(34,197,94,0.25)',
+                          borderRadius: 6,
+                          padding: '4px 12px',
+                          fontSize: '0.78rem',
+                          color: isShort ? 'var(--text-muted)' : 'var(--success)',
+                          fontWeight: 600,
+                        }}>
+                          <span dir="ltr" style={{ display: 'inline-block' }}>{slot.available_from} - {slot.available_to}</span>
+                          <span style={{ opacity: 0.7, marginRight: 4 }}>({slot.duration_minutes}د)</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );

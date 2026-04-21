@@ -362,7 +362,7 @@ export default function NewExam() {
                                     fontWeight: 600,
                                     fontSize: '0.78rem',
                                   }}>
-                                    🕐 {s.available_from} – {s.available_to} ({s.duration_minutes}د)
+                                    <span dir="ltr" style={{ display: 'inline-block' }}>{s.available_from} - {s.available_to}</span> ({s.duration_minutes}د)
                                   </span>
                                 ))}
                               </div>
@@ -383,7 +383,7 @@ export default function NewExam() {
               <h3 style={{ color: 'var(--success)', marginBottom: 12, fontSize: '0.95rem' }}>✅ الوقت المختار للجدولة</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: '0.85rem', marginBottom: 14 }}>
                 <Detail label="اليوم" value={DAY_AR[selectedSlot.day] || selectedSlot.day} />
-                <Detail label="الوقت" value={`${selectedSlot.start_time} – ${selectedSlot.end_time}`} />
+                <Detail label="الوقت" value={<span dir="ltr" style={{ display: 'inline-block' }}>{`${selectedSlot.start_time} - ${selectedSlot.end_time}`}</span>} />
                 <Detail label="المدة" value={`${selectedSlot.duration_minutes} دقيقة`} />
                 <Detail label="المختبر/المختبرات" value={selectedSlot.rooms?.join(' / ')} />
                 <Detail label="إجمالي السعة" value={`${selectedSlot.total_capacity} طالب`} />
@@ -455,7 +455,7 @@ export default function NewExam() {
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: '0.82rem' }}>
                         <Detail label="اليوم" value={DAY_AR[s.day] || s.day} />
-                        <Detail label="الوقت المتاح" value={`${s.start_time} – ${s.end_time}`} />
+                        <Detail label="الوقت المتاح" value={<span dir="ltr" style={{ display: 'inline-block' }}>{`${s.start_time} - ${s.end_time}`}</span>} />
                         <Detail label="المختبر(ات)" value={s.rooms?.join(' / ')} />
                         <Detail label="السعة الكلية" value={`${s.total_capacity} طالب`} />
                       </div>

@@ -39,10 +39,9 @@ The UI is built in **Arabic (RTL)** to match the university's language.
 | Layer      | Technology                                      |
 |------------|-------------------------------------------------|
 | Frontend   | React 18, React Router v6, Recharts, Vite       |
-| Backend    | Node.js, Express.js                             |
-| Database   | SQLite via `better-sqlite3`                     |
-| Parsing    | `xlsx` library (supports `.xls` / `.xlsx`)      |
-| AI Vision  | Google Generative AI (`@google/generative-ai`)  |
+| Backend    | PHP, Laravel Framework                          |
+| Database   | SQLite (via Laravel ORM)                        |
+| Parsing    | `phpoffice/phpspreadsheet` library              |
 | Styling    | Vanilla CSS (custom design system, RTL-ready)   |
 
 ---
@@ -51,38 +50,19 @@ The UI is built in **Arabic (RTL)** to match the university's language.
 
 ```
 Uni Project/
-├── install.bat          # One-click dependency installer
 ├── start-dev.bat        # Launches both backend & frontend servers
-├── package.json         # Root-level workspace config
+├── backend-php/         # Laravel PHP Backend
+│   ├── app/             # Application Core (Controllers, Models, Services)
+│   │   ├── Http/Controllers/Api/ # REST API Controllers
+│   │   └── Services/    # Core business logic (Parser, Availability, Occupancy)
+│   ├── config/          # Framework configuration
+│   ├── database/        # Migrations and SQLite database file
+│   ├── routes/          # API routes definitions
+│   └── storage/         # Uploaded Excel files storage
 │
-├── backend/
-│   ├── server.js        # Express app entry point (port 3001)
-│   ├── db.js            # SQLite database setup & schema
-│   ├── .env             # Environment variables (PORT, API keys)
-│   ├── seed_rooms.js    # Seeds initial room/lab data
-│   ├── seed-library.js  # Seeds library building sessions
-│   │
-│   ├── routes/          # REST API route handlers
-│   │   ├── uploads.js      # File upload & Excel parsing trigger
-│   │   ├── sessions.js     # Parsed lecture sessions CRUD
-│   │   ├── availability.js # Free slot calculation per room/day
-│   │   ├── exams.js        # Exam request management
-│   │   ├── conflicts.js    # Conflict detection & listing
-│   │   ├── dashboard.js    # Summary stats for dashboard
-│   │   ├── schedule.js     # Final scheduled exam management
-│   │   └── vision.js       # Google AI-powered schedule vision
-│   │
-│   ├── services/        # Core business logic
-│   │   ├── parser.js       # Excel timetable parser (grid + flat formats)
-│   │   ├── availability.js # Free-time slot computation engine
-│   │   └── occupancy.js    # Room occupancy calculation
-│   │
-│   ├── data/            # SQLite database file (auto-created)
-│   └── uploads/         # Uploaded Excel files storage
-│
-└── frontend/
-    ├── index.html
-    ├── vite.config.js
+└── frontend/            # React Frontend
+    ├── index.html       # Main HTML file
+    ├── vite.config.js   # Vite configuration (proxies /api to backend)
     └── src/
         ├── App.jsx         # Root router & layout
         ├── main.jsx        # React entry point
@@ -138,15 +118,11 @@ Uni Project/
 - Charts (via Recharts) for visualization.
 - Quick-action buttons to navigate key workflows.
 
-### 🤖 AI Vision (Experimental)
-- Google Generative AI integration for reading/processing schedule images or documents.
-- Accessible via `/api/vision` endpoint.
-
 ---
 
 ## Database Schema
 
-The SQLite database (`backend/data/exam_scheduler.db`) contains 6 tables:
+The SQLite database (`backend-php/database/exam_scheduler.db`) contains 6 tables:
 
 | Table              | Purpose                                                  |
 |--------------------|----------------------------------------------------------|
@@ -164,20 +140,19 @@ The SQLite database (`backend/data/exam_scheduler.db`) contains 6 tables:
 | Method | Endpoint                          | Description                              |
 |--------|-----------------------------------|------------------------------------------|
 | POST   | `/api/uploads`                    | Upload an Excel file                     |
-| POST   | `/api/uploads/:id/parse`          | Trigger parsing for an uploaded file     |
+| POST   | `/api/uploads/:id/reparse`        | Trigger parsing for an uploaded file     |
 | GET    | `/api/uploads`                    | List all uploaded files                  |
 | DELETE | `/api/uploads/:id`                | Delete an uploaded file and its sessions |
 | GET    | `/api/sessions`                   | List all parsed sessions (filterable)    |
-| GET    | `/api/availability`               | Get free slots per room/day              |
-| POST   | `/api/exams`                      | Create a new exam request                |
-| GET    | `/api/exams`                      | List all exam requests                   |
-| DELETE | `/api/exams/:id`                  | Delete an exam request                   |
+| GET    | `/api/availability/free-slots`    | Get free slots logically determined      |
+| POST   | `/api/exams/requests`             | Create a new exam request                |
+| GET    | `/api/exams/requests`             | List all exam requests                   |
+| DELETE | `/api/exams/requests/:id`         | Delete an exam request                   |
 | GET    | `/api/conflicts`                  | List all detected conflicts              |
-| DELETE | `/api/conflicts/:id`              | Dismiss/resolve a conflict               |
+| POST   | `/api/conflicts/rebuild`          | Detect all system conflicts              |
 | GET    | `/api/schedule`                   | Get all scheduled exams                  |
-| DELETE | `/api/schedule/:id`               | Remove a scheduled exam                  |
-| GET    | `/api/dashboard`                  | Get summary statistics                   |
-| GET    | `/api/health`                     | Health check                             |
+| GET    | `/api/schedule/export/excel`      | Export Final Schedule as Excel File      |
+| GET    | `/api/dashboard/stats`            | Get summary statistics                   |
 
 ---
 
@@ -198,34 +173,44 @@ The SQLite database (`backend/data/exam_scheduler.db`) contains 6 tables:
 ## Getting Started
 
 ### Prerequisites
+- [PHP](https://www.php.net/) ^8.2 (With `sqlite3`, `zip`, `gd`, `fileinfo` extensions enabled)
+- [Composer](https://getcomposer.org/) (For managing PHP dependencies)
 - [Node.js](https://nodejs.org/) v18 or higher
 - Windows OS (scripts are `.bat` files)
 
 ### Installation
 
 ```bat
-# Step 1: Install all dependencies (backend + frontend)
-install.bat
+# Step 1: Install Backend Dependencies
+cd backend-php
+composer install
+copy .env.example .env
+php artisan key:generate
+php artisan migrate
+
+# Step 2: Install Frontend Dependencies
+cd ../frontend
+npm install
 ```
 
 ### Running the App
 
 ```bat
-# Step 2: Start both servers and open the browser
+# Step 3: Start both servers and open the browser
 start-dev.bat
 ```
 
 This will:
-- Start the **backend** on `http://localhost:3001`
-- Start the **frontend** on `http://localhost:5173`
+- Start the **backend** (Laravel) on `http://localhost:8000`
+- Start the **frontend** (Vite) on `http://localhost:5173`
 - Open the app automatically in your browser
 
 ### Manual Start (Alternative)
 
 ```bash
 # Backend
-cd backend
-npm run dev
+cd backend-php
+php artisan serve
 
 # Frontend (new terminal)
 cd frontend
