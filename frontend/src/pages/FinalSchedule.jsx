@@ -8,9 +8,12 @@ const DAY_AR = {
 };
 
 const FACULTY_OPTIONS = [
-  { value: '', label: 'الكل (IT + المكتبة)' },
-  { value: 'it', label: 'مبنى IT' },
-  { value: 'library', label: 'مبنى المكتبة' },
+  { value: '', label: 'الكل' },
+  { value: 'it_library', label: 'الكل (IT + المكتبة)' },
+  { value: 'it', label: 'مختبرات IT' },
+  { value: 'library', label: 'مختبرات المكتبة' },
+  { value: 'media', label: 'مختبرات الإعلام' },
+  { value: 'arts', label: 'مختبرات الآداب' },
 ];
 
 const DAYS_ORDER = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -19,7 +22,18 @@ export default function FinalSchedule() {
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState({ faculty: '', day: '' });
+  const [roomsInfo, setRoomsInfo] = useState({});
   const toast = useToast();
+
+  useEffect(() => {
+    import('../api').then(({ roomsAPI }) => {
+      roomsAPI.list().then(data => {
+        const map = {};
+        (data || []).forEach(r => map[r.room_name] = r);
+        setRoomsInfo(map);
+      });
+    });
+  }, []);
 
   useEffect(() => { load(); }, [filter]);
 
@@ -165,9 +179,19 @@ export default function FinalSchedule() {
                           <td style={{ maxWidth: 120 }} className="truncate">{exam.lecturer || '-'}</td>
                           <td>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                              {(exam.rooms || []).map(r => (
-                                <span key={r} className="badge badge-info" style={{ fontSize: '0.7rem' }}>{r}</span>
-                              ))}
+                              {(exam.rooms || []).map(r => {
+                                const info = roomsInfo[r];
+                                const title = [
+                                  info?.vlan_id ? `VLAN: ${info.vlan_id}` : '',
+                                  info?.subnet_pattern ? `Subnet: ${info.subnet_pattern}` : ''
+                                ].filter(Boolean).join(' | ');
+                                
+                                return (
+                                  <span key={r} className="badge badge-info" style={{ fontSize: '0.7rem' }} title={title || 'لا توجد تفاصيل شبكة'}>
+                                    {r} {info?.vlan_id && '📡'}
+                                  </span>
+                                );
+                              })}
                             </div>
                           </td>
                           <td>{exam.total_capacity || '-'}</td>

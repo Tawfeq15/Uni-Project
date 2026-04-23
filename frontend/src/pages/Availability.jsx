@@ -10,19 +10,24 @@ const DAY_AR = {
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
 
 const FACULTY_OPTIONS = [
-  { value: '', label: 'الكل (IT + المكتبة)' },
-  { value: 'it', label: 'مبنى IT' },
-  { value: 'library', label: 'مبنى المكتبة' },
+  { value: '', label: 'الكل' },
+  { value: 'it_library', label: 'الكل (IT + المكتبة)' },
+  { value: 'it', label: 'مختبرات IT' },
+  { value: 'library', label: 'مختبرات المكتبة' },
+  { value: 'media', label: 'مختبرات الإعلام' },
+  { value: 'arts', label: 'مختبرات الآداب' },
 ];
 
 const LAB_INFO = {
-  '2101': { capacity: 26, building: 'المكتبة', floor: '1' },
-  '2102': { capacity: 26, building: 'المكتبة', floor: '1' },
-  '2103': { capacity: 26, building: 'المكتبة', floor: '1' },
-  '2104': { capacity: 26, building: 'المكتبة', floor: '1' },
-  '2105': { capacity: 26, building: 'المكتبة', floor: '1' },
-  '2106': { capacity: 26, building: 'المكتبة', floor: '1' },
-  '2107': { capacity: 36, building: 'المكتبة', floor: '1' }, // Note: capacity is 36
+  // مختبرات المكتبة
+  '2101': { capacity: 26, building: 'مختبرات المكتبة', floor: '1' },
+  '2102': { capacity: 26, building: 'مختبرات المكتبة', floor: '1' },
+  '2103': { capacity: 26, building: 'مختبرات المكتبة', floor: '1' },
+  '2104': { capacity: 26, building: 'مختبرات المكتبة', floor: '1' },
+  '2105': { capacity: 26, building: 'مختبرات المكتبة', floor: '1' },
+  '2106': { capacity: 26, building: 'مختبرات المكتبة', floor: '1' },
+  '2107': { capacity: 36, building: 'مختبرات المكتبة', floor: '1' },
+  // مختبرات IT
   '7325': { capacity: 24, building: 'IT', floor: '3' },
   '7416': { capacity: 24, building: 'IT', floor: '4' },
   '7417': { capacity: 20, building: 'IT', floor: '4' },
@@ -33,6 +38,14 @@ const LAB_INFO = {
   '7424': { capacity: 26, building: 'IT', floor: '4' },
   '7426': { capacity: 26, building: 'IT', floor: '4' },
   '7428': { capacity: 26, building: 'IT', floor: '4' },
+  // مختبرات الإعلام
+  '3118': { capacity: 24, building: 'مختبرات الإعلام', floor: '1' },
+  '3301': { capacity: 23, building: 'مختبرات الإعلام', floor: '3' },
+  '3311': { capacity: 24, building: 'مختبرات الإعلام', floor: '3' },
+  // مختبرات الآداب
+  '6304': { capacity: 30, building: 'مختبرات الآداب', floor: '3' },
+  '6320': { capacity: 20, building: 'مختبرات الآداب', floor: '3' },
+  '6202': { capacity: 20, building: 'مختبرات الآداب', floor: '2' },
 };
 
 // Time bar: 8:00 to 16:00
@@ -165,7 +178,9 @@ export default function Availability() {
   }
 
   // All known labs: only the ones defined explicitly by the user in LAB_INFO
-  const allRooms = Object.keys(LAB_INFO).sort();
+  // AND actually returned by the backend (which filters by active uploads)
+  const dbRoomNames = new Set(rooms.map(r => r.room_name));
+  const allRooms = Object.keys(LAB_INFO).filter(name => dbRoomNames.has(name)).sort();
 
   return (
     <div className="page">
@@ -268,6 +283,7 @@ export default function Availability() {
                 capacity={capacity}
                 faculty={faculty}
                 info={info}
+                dbRoom={dbRoom}
                 slotData={slotData}
                 hasSlots={hasSlots}
                 loadRoomDay={loadRoomDay}
@@ -282,7 +298,7 @@ export default function Availability() {
   );
 }
 
-function LabCard({ roomName, capacity, faculty, info, slotData, hasSlots, loadRoomDay, roomDetails, filterDay }) {
+function LabCard({ roomName, capacity, faculty, info, dbRoom, slotData, hasSlots, loadRoomDay, roomDetails, filterDay }) {
   const [expanded, setExpanded] = useState(false);
 
   const DAYS_CONSTANT = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
@@ -365,6 +381,18 @@ function LabCard({ roomName, capacity, faculty, info, slotData, hasSlots, loadRo
               <div>
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>الطابق</div>
                 <div style={{ fontWeight: 600 }}>{info.floor}</div>
+              </div>
+            )}
+            {dbRoom?.vlan_id && (
+              <div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>VLAN</div>
+                <div style={{ fontWeight: 600, color: 'var(--warning)' }}>{dbRoom.vlan_id}</div>
+              </div>
+            )}
+            {dbRoom?.subnet_pattern && (
+              <div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>Subnet</div>
+                <div style={{ fontWeight: 600, direction: 'ltr', textAlign: 'right' }}>{dbRoom.subnet_pattern}</div>
               </div>
             )}
             <div>

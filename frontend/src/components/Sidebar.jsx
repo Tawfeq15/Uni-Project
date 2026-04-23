@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   ]},
   { group: 'البيانات', items: [
     { to: '/uploads', icon: '📤', label: 'رفع الملفات' },
+    { to: '/rooms', icon: '🚪', label: 'إدارة القاعات' },
     { to: '/sessions', icon: '📋', label: 'المحاضرات' },
   ]},
   { group: 'الجدولة', items: [

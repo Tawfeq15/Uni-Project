@@ -20,6 +20,14 @@ export const uploadsAPI = {
   reparse: (id) => request(`/uploads/${id}/reparse`, { method: 'POST' }),
 };
 
+// Rooms
+export const roomsAPI = {
+  list: (faculty) => request(`/rooms${faculty ? '?faculty=' + encodeURIComponent(faculty) : ''}`),
+  create: (data) => request('/rooms', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id, data) => request(`/rooms/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id) => request(`/rooms/${id}`, { method: 'DELETE' }),
+};
+
 // Sessions
 export const sessionsAPI = {
   list: (params = {}) => {

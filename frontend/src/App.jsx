@@ -9,6 +9,7 @@ import Availability from './pages/Availability';
 import NewExam from './pages/NewExam';
 import Conflicts from './pages/Conflicts';
 import FinalSchedule from './pages/FinalSchedule';
+import Rooms from './pages/Rooms';
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/uploads" element={<Uploads />} />
+              <Route path="/rooms" element={<Rooms />} />
               <Route path="/sessions" element={<Sessions />} />
               <Route path="/availability" element={<Availability />} />
               <Route path="/new-exam" element={<NewExam />} />

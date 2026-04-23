@@ -149,7 +149,13 @@ export default function Sessions() {
                 {sessions.map(s => (
                   <tr key={s.id}>
                     <td><span className="badge badge-primary" style={{ fontSize: '0.7rem' }}>{s.faculty}</span></td>
-                    <td><span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{s.room}</span></td>
+                    <td>
+                      {s.room_id ? (
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{s.room} <span title="قاعة معروفة" style={{fontSize:'0.7rem'}}>✅</span></span>
+                      ) : (
+                        <span style={{ fontWeight: 600, color: 'var(--danger)' }} title="لم يتم التعرف على القاعة">{s.room_raw || s.room} ⚠️</span>
+                      )}
+                    </td>
                     <td style={{ maxWidth: 180 }} className="truncate">{(s.course_code ? s.course_code + ' - ' : '') + (s.course_name || '-')}</td>
                     <td style={{ maxWidth: 140 }} className="truncate">{s.lecturer || '-'}</td>
                     <td>{DAY_AR[s.day] || s.day}</td>

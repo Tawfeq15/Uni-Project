@@ -7,23 +7,43 @@ const DAY_AR = {
   wednesday: 'الأربعاء', thursday: 'الخميس', friday: 'الجمعة', saturday: 'السبت',
 };
 
+// Maps day name to JS Date.getDay() index (0=Sunday)
+const DAY_JS_INDEX = {
+  sunday: 0, monday: 1, tuesday: 2,
+  wednesday: 3, thursday: 4, friday: 5, saturday: 6,
+};
+
+/** Returns true if the given YYYY-MM-DD date falls on dayName */
+function dateMatchesDay(dateStr, dayName) {
+  if (!dateStr || !dayName) return true; // no constraint
+  // Parse as local date to avoid timezone shift (split manually)
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const jsDay = new Date(y, m - 1, d).getDay();
+  return jsDay === DAY_JS_INDEX[dayName];
+}
+
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
 
 const FACULTY_OPTIONS = [
-  { value: '', label: 'كل المختبرات (IT + المكتبة)' },
-  { value: 'it', label: 'مبنى IT فقط' },
-  { value: 'library', label: 'مبنى المكتبة فقط' },
+  { value: '', label: 'كل المختبرات' },
+  { value: 'it_library', label: 'كل المختبرات (IT + المكتبة)' },
+  { value: 'it', label: 'مختبرات IT' },
+  { value: 'library', label: 'مختبرات المكتبة' },
+  { value: 'media', label: 'مختبرات الإعلام' },
+  { value: 'arts', label: 'مختبرات الآداب' },
 ];
 
 // Lab details for display
 const LAB_INFO = {
-  '2101': { capacity: 26, building: 'مبنى المكتبة', floor: '1' },
-  '2102': { capacity: 26, building: 'مبنى المكتبة', floor: '1' },
-  '2103': { capacity: 26, building: 'مبنى المكتبة', floor: '1' },
-  '2104': { capacity: 26, building: 'مبنى المكتبة', floor: '1' },
-  '2105': { capacity: 26, building: 'مبنى المكتبة', floor: '1' },
-  '2106': { capacity: 26, building: 'مبنى المكتبة', floor: '1' },
-  '2107': { capacity: 35, building: 'مبنى المكتبة', floor: '1' },
+  // مختبرات المكتبة
+  '2101': { capacity: 26, building: 'مختبرات المكتبة', floor: '1' },
+  '2102': { capacity: 26, building: 'مختبرات المكتبة', floor: '1' },
+  '2103': { capacity: 26, building: 'مختبرات المكتبة', floor: '1' },
+  '2104': { capacity: 26, building: 'مختبرات المكتبة', floor: '1' },
+  '2105': { capacity: 26, building: 'مختبرات المكتبة', floor: '1' },
+  '2106': { capacity: 26, building: 'مختبرات المكتبة', floor: '1' },
+  '2107': { capacity: 36, building: 'مختبرات المكتبة', floor: '1' },
+  // مختبرات IT
   '7325': { capacity: 24, building: 'IT', floor: '3' },
   '7416': { capacity: 24, building: 'IT', floor: '4' },
   '7417': { capacity: 20, building: 'IT', floor: '4' },
@@ -34,6 +54,14 @@ const LAB_INFO = {
   '7424': { capacity: 26, building: 'IT', floor: '4' },
   '7426': { capacity: 26, building: 'IT', floor: '4' },
   '7428': { capacity: 26, building: 'IT', floor: '4' },
+  // مختبرات الإعلام
+  '3118': { capacity: 24, building: 'مختبرات الإعلام', floor: '1' },
+  '3301': { capacity: 23, building: 'مختبرات الإعلام', floor: '3' },
+  '3311': { capacity: 24, building: 'مختبرات الإعلام', floor: '3' },
+  // مختبرات الآداب
+  '6304': { capacity: 30, building: 'مختبرات الآداب', floor: '3' },
+  '6320': { capacity: 20, building: 'مختبرات الآداب', floor: '3' },
+  '6202': { capacity: 20, building: 'مختبرات الآداب', floor: '2' },
 };
 
 export default function NewExam() {
@@ -41,7 +69,7 @@ export default function NewExam() {
   const [form, setForm] = useState({
     course_code: '', course_name: '', section: '', lecturer: '',
     student_count: '', faculty: '', preferred_day: '', preferred_date: '',
-    duration_minutes: '60', notes: '',
+    duration_minutes: '60', preferred_time_from: '', preferred_time_to: '', notes: '',
   });
   const [suggestions, setSuggestions] = useState([]);
   const [rejected, setRejected] = useState([]);
@@ -52,8 +80,15 @@ export default function NewExam() {
   const [requests, setRequests] = useState([]);
   const [freeSlots, setFreeSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [dateError, setDateError] = useState('');
+  const [courses, setCourses] = useState([]);
 
-  useEffect(() => { loadRequests(); }, []);
+  useEffect(() => { 
+    loadRequests(); 
+    import('../api').then(({ sessionsAPI }) => {
+      sessionsAPI.filters().then(data => setCourses(data.courses || []));
+    });
+  }, []);
 
   useEffect(() => {
     if (form.preferred_day) {
@@ -78,6 +113,21 @@ export default function NewExam() {
     setSelectedSlot(null);
     setSuggestions([]);
     setFreeSlots([]);
+    // Clear date error when day or date changes
+    if (key === 'preferred_day' || key === 'preferred_date') setDateError('');
+  }
+
+  function handleDateChange(dateVal) {
+    if (dateVal && form.preferred_day && !dateMatchesDay(dateVal, form.preferred_day)) {
+      setDateError(
+        `⚠️ التاريخ المختار ليس يوم ${DAY_AR[form.preferred_day]}! الرجاء اختيار تاريخ صحيح.`
+      );
+      // Still store the value so the user sees it, but show the error
+      setForm(prev => ({ ...prev, preferred_date: dateVal }));
+    } else {
+      setDateError('');
+      setField('preferred_date', dateVal);
+    }
   }
 
   async function fetchFreeSlots() {
@@ -91,6 +141,8 @@ export default function NewExam() {
         roomType: 'lab',
       };
       if (form.faculty) params.faculty = form.faculty;
+      if (form.preferred_time_from) params.timeFrom = form.preferred_time_from;
+      if (form.preferred_time_to) params.timeTo = form.preferred_time_to;
       const data = await availabilityAPI.freeSlots(params);
       setFreeSlots(data.slots || []);
     } catch (e) {
@@ -112,6 +164,8 @@ export default function NewExam() {
         studentCount: form.student_count ? parseInt(form.student_count) : 0,
         lecturer: form.lecturer || null,
         roomType: 'lab',
+        timeFrom: form.preferred_time_from || null,
+        timeTo: form.preferred_time_to || null,
       });
       setSuggestions(result.suggestions || []);
       setRejected(result.rejected || []);
@@ -125,6 +179,7 @@ export default function NewExam() {
   async function handleSaveRequest() {
     if (!form.faculty) return toast('يجب تحديد المبنى', 'warning');
     if (!form.course_code) return toast('يجب إدخال كود المادة', 'warning');
+    if (dateError) return toast('التاريخ لا يتطابق مع اليوم المختار. صحح التاريخ أولاً.', 'error');
     try {
       await examsAPI.createRequest({
         ...form,
@@ -142,6 +197,7 @@ export default function NewExam() {
   async function handleScheduleExam() {
     if (!selectedSlot) return toast('يجب اختيار وقت مقترح أولاً', 'warning');
     if (!form.course_code) return toast('يجب إدخال كود المادة', 'warning');
+    if (dateError) return toast('التاريخ لا يتطابق مع اليوم المختار. صحح التاريخ أولاً.', 'error');
     setSaving(true);
     try {
       await examsAPI.schedule({
@@ -163,7 +219,7 @@ export default function NewExam() {
       setForm({
         course_code: '', course_name: '', section: '', lecturer: '',
         student_count: '', faculty: '', preferred_day: '', preferred_date: '',
-        duration_minutes: '60', notes: '',
+        duration_minutes: '60', preferred_time_from: '', preferred_time_to: '', notes: '',
       });
       setSuggestions([]);
       setSelectedSlot(null);
@@ -214,11 +270,33 @@ export default function NewExam() {
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">كود المادة *</label>
-                <input type="text" className="form-control" placeholder="مثال: CS121" value={form.course_code} onChange={e => setField('course_code', e.target.value)} />
+                <input type="text" list="courses-list" className="form-control" placeholder="مثال: CS121" value={form.course_code} onChange={e => {
+                  const val = e.target.value;
+                  const matched = courses.find(c => c.course_code === val);
+                  if (matched) {
+                    setForm(prev => ({ ...prev, course_code: val, course_name: matched.course_name }));
+                  } else {
+                    setField('course_code', val);
+                  }
+                }} />
+                <datalist id="courses-list">
+                  {courses.map((c, i) => <option key={i} value={c.course_code}>{c.course_name}</option>)}
+                </datalist>
               </div>
               <div className="form-group">
                 <label className="form-label">اسم المادة</label>
-                <input type="text" className="form-control" placeholder="اسم المادة" value={form.course_name} onChange={e => setField('course_name', e.target.value)} />
+                <input type="text" list="course-names-list" className="form-control" placeholder="اسم المادة" value={form.course_name} onChange={e => {
+                  const val = e.target.value;
+                  const matched = courses.find(c => c.course_name === val);
+                  if (matched) {
+                    setForm(prev => ({ ...prev, course_name: val, course_code: matched.course_code }));
+                  } else {
+                    setField('course_name', val);
+                  }
+                }} />
+                <datalist id="course-names-list">
+                  {courses.filter(c => c.course_name).map((c, i) => <option key={i} value={c.course_name}>{c.course_code}</option>)}
+                </datalist>
               </div>
             </div>
 
@@ -266,10 +344,78 @@ export default function NewExam() {
               </div>
             </div>
 
+            {/* Preferred Time Range */}
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">⏰ الوقت المفضل — من</label>
+                <select
+                  className="form-control"
+                  value={form.preferred_time_from}
+                  onChange={e => setField('preferred_time_from', e.target.value)}
+                >
+                  <option value="">-- غير محدد --</option>
+                  {['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+                    '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+                    '16:00', '16:30', '17:00'].map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">⏰ الوقت المفضل — إلى</label>
+                <select
+                  className="form-control"
+                  value={form.preferred_time_to}
+                  onChange={e => setField('preferred_time_to', e.target.value)}
+                >
+                  <option value="">-- غير محدد --</option>
+                  {['08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00',
+                    '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00',
+                    '16:30', '17:00', '17:30'].map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+            {form.preferred_time_from && form.preferred_time_to && (
+              <div style={{
+                background: 'var(--primary-glow)',
+                border: '1px solid var(--primary)',
+                borderRadius: 8,
+                padding: '7px 12px',
+                fontSize: '0.8rem',
+                color: 'var(--primary)',
+                marginBottom: 8,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}>
+                🕐 سيتم البحث في النطاق الزمني:{' '}
+                <strong dir="ltr" style={{ display: 'inline-block' }}>
+                  {form.preferred_time_from} – {form.preferred_time_to}
+                </strong>
+              </div>
+            )}
+
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">التاريخ المفضل (اختياري)</label>
-                <input type="date" className="form-control" value={form.preferred_date} onChange={e => setField('preferred_date', e.target.value)} />
+                <input
+                  type="date"
+                  className="form-control"
+                  value={form.preferred_date}
+                  onChange={e => handleDateChange(e.target.value)}
+                  style={dateError ? { borderColor: 'var(--danger)', boxShadow: '0 0 0 2px rgba(239,68,68,0.2)' } : {}}
+                />
+                {dateError && (
+                  <div style={{
+                    marginTop: 5,
+                    fontSize: '0.78rem',
+                    color: 'var(--danger)',
+                    background: 'rgba(239,68,68,0.08)',
+                    border: '1px solid rgba(239,68,68,0.3)',
+                    borderRadius: 6,
+                    padding: '5px 10px',
+                  }}>
+                    {dateError}
+                  </div>
+                )}
               </div>
               <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                 <div style={{
