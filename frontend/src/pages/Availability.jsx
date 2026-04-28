@@ -15,7 +15,9 @@ const FACULTY_OPTIONS = [
   { value: 'it', label: 'مختبرات IT' },
   { value: 'library', label: 'مختبرات المكتبة' },
   { value: 'media', label: 'مختبرات الإعلام' },
-  { value: 'arts', label: 'مختبرات الآداب' },
+  { value: 'literature', label: 'مختبرات الآداب' },
+  { value: 'law', label: 'مختبرات الحقوق' },
+  { value: 'architecture', label: 'مختبرات العمارة' },
 ];
 
 const LAB_INFO = {
@@ -39,23 +41,40 @@ const LAB_INFO = {
   '7426': { capacity: 26, building: 'IT', floor: '4' },
   '7428': { capacity: 26, building: 'IT', floor: '4' },
   // مختبرات الإعلام
+  '3117': { capacity: 24, building: 'مختبرات الإعلام', floor: '1' },
   '3118': { capacity: 24, building: 'مختبرات الإعلام', floor: '1' },
   '3301': { capacity: 23, building: 'مختبرات الإعلام', floor: '3' },
+  '3302': { capacity: 24, building: 'مختبرات الإعلام', floor: '3' },
+  '3303': { capacity: 24, building: 'مختبرات الإعلام', floor: '3' },
+  '3309': { capacity: 24, building: 'مختبرات الإعلام', floor: '3' },
+  '3310': { capacity: 24, building: 'مختبرات الإعلام', floor: '3' },
   '3311': { capacity: 24, building: 'مختبرات الإعلام', floor: '3' },
-  // مختبرات الآداب
+  // مختبرات الآداب (Literature)
   '6304': { capacity: 30, building: 'مختبرات الآداب', floor: '3' },
   '6320': { capacity: 20, building: 'مختبرات الآداب', floor: '3' },
   '6202': { capacity: 20, building: 'مختبرات الآداب', floor: '2' },
+  '6325': { capacity: 20, building: 'مختبرات الآداب', floor: '3' },
+  // مختبرات الحقوق
+  '3411': { capacity: 24, building: 'مبنى الإعلام/الحقوق', floor: '4' },
+  // مختبرات العمارة
+  '4313': { capacity: 23, building: 'مبنى العمارة', floor: '3' },
+  '4315': { capacity: 23, building: 'مبنى العمارة', floor: '3' },
+  '4310': { capacity: 23, building: 'مبنى العمارة', floor: '3' },
+  '4210': { capacity: 25, building: 'مبنى العمارة', floor: '2' },
+  '4217': { capacity: 22, building: 'مبنى العمارة', floor: '2' },
+  '4428': { capacity: 21, building: 'مبنى العمارة', floor: '4' },
+  '4121': { capacity: 21, building: 'مبنى العمارة', floor: '1' },
+  '4221': { capacity: 21, building: 'مبنى العمارة', floor: '2' },
 };
 
-// Time bar: 8:00 to 16:00
-function TimeBar({ occupied, free, day }) {
+// TimeBar: 8:00 to 16:00
+function TimeBar({ occupied, free, day, filterDuration }) {
   const START = 8 * 60;
   const END = 16 * 60;
   const SPAN = END - START;
   const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16];
 
-  const minDuration = (day === 'monday' || day === 'wednesday') ? 90 : 60;
+  const minDuration = filterDuration ? parseInt(filterDuration) : 60;
 
   function pct(minutes) {
     return Math.max(0, Math.min(100, ((minutes - START) / SPAN) * 100));
@@ -179,8 +198,12 @@ export default function Availability() {
 
   // All known labs: only the ones defined explicitly by the user in LAB_INFO
   // AND actually returned by the backend (which filters by active uploads)
-  const dbRoomNames = new Set(rooms.map(r => r.room_name));
-  const allRooms = Object.keys(LAB_INFO).filter(name => dbRoomNames.has(name)).sort();
+  // All known labs: Combine LAB_INFO with any other rooms found in the DB
+  const dbRoomNames = rooms.map(r => r.room_name);
+  const infoRoomNames = Object.keys(LAB_INFO);
+  const allRooms = Array.from(new Set([...dbRoomNames, ...infoRoomNames]))
+    .filter(name => dbRoomNames.includes(name)) // Only show rooms actually in DB
+    .sort();
 
   return (
     <div className="page">
@@ -198,7 +221,7 @@ export default function Availability() {
           {[
             { label: 'مختبرات IT', value: rooms.filter(r => r.faculty === 'it').length, icon: '💻', color: 'info' },
             { label: 'مختبرات المكتبة', value: rooms.filter(r => r.faculty === 'library').length, icon: '📚', color: 'primary' },
-            { label: 'إجمالي المختبرات', value: rooms.length, icon: '🔬', color: 'warning' },
+            { label: 'كليات أخرى', value: rooms.filter(r => !['it', 'library'].includes(r.faculty)).length, icon: '🏛️', color: 'warning' },
             { label: 'مختبرات متاحة اليوم', value: summary.free_labs ?? 0, icon: '✅', color: 'success' },
           ].map(c => (
             <div key={c.label} className={`stat-card ${c.color}`}>
@@ -289,6 +312,7 @@ export default function Availability() {
                 loadRoomDay={loadRoomDay}
                 roomDetails={roomDetails}
                 filterDay={filters.day}
+                filterDuration={filters.duration}
               />
             );
           })}
@@ -298,7 +322,7 @@ export default function Availability() {
   );
 }
 
-function LabCard({ roomName, capacity, faculty, info, dbRoom, slotData, hasSlots, loadRoomDay, roomDetails, filterDay }) {
+function LabCard({ roomName, capacity, faculty, info, dbRoom, slotData, hasSlots, loadRoomDay, roomDetails, filterDay, filterDuration }) {
   const [expanded, setExpanded] = useState(false);
 
   const DAYS_CONSTANT = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
@@ -420,7 +444,7 @@ function LabCard({ roomName, capacity, faculty, info, dbRoom, slotData, hasSlots
                   {/* Timeline */}
                   {details ? (
                     details.free.length > 0 ? (
-                      <TimeBar occupied={details.occupied} free={details.free} day={day} />
+                      <TimeBar occupied={details.occupied} free={details.free} day={day} filterDuration={filterDuration} />
                     ) : (
                       <div style={{ height: 24, background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)', fontSize: '0.8rem', fontWeight: 600 }}>
                         ❌ مشغول بالكامل (لا توجد فترات حرة تتسع لامتحان)
@@ -435,8 +459,8 @@ function LabCard({ roomName, capacity, faculty, info, dbRoom, slotData, hasSlots
                   {/* Free slots chips */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                     {daySlots.map((slot, i) => {
-                      const minDuration = (day === 'monday' || day === 'wednesday') ? 90 : 60;
-                      const isShort = slot.duration_minutes < minDuration;
+                      const minDur = filterDuration ? parseInt(filterDuration) : 60;
+                      const isShort = slot.duration_minutes < minDur;
                       return (
                         <div key={i} style={{
                           background: isShort ? 'var(--bg-secondary)' : 'var(--success-bg)',

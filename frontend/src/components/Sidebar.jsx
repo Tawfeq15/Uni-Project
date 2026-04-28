@@ -9,12 +9,14 @@ const NAV_ITEMS = [
     { to: '/uploads', icon: '📤', label: 'رفع الملفات' },
     { to: '/rooms', icon: '🚪', label: 'إدارة القاعات' },
     { to: '/sessions', icon: '📋', label: 'المحاضرات' },
+    { to: '/exam-imports', icon: '📥', label: 'استيراد الجداول' },
   ]},
   { group: 'الجدولة', items: [
     { to: '/availability', icon: '🏫', label: 'القاعات المتاحة' },
     { to: '/new-exam', icon: '➕', label: 'طلب اختبار جديد' },
     { to: '/conflicts', icon: '⚠️', label: 'التعارضات' },
     { to: '/schedule', icon: '🗓️', label: 'الجدول النهائي' },
+    { to: '/calendar', icon: '📅', label: 'التقويم الشامل' },
   ]},
 ];
 

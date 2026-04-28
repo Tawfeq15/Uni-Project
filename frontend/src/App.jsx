@@ -10,6 +10,8 @@ import NewExam from './pages/NewExam';
 import Conflicts from './pages/Conflicts';
 import FinalSchedule from './pages/FinalSchedule';
 import Rooms from './pages/Rooms';
+import CalendarView from './pages/CalendarView';
+import ExamImports from './pages/ExamImports';
 
 export default function App() {
   return (
@@ -27,6 +29,8 @@ export default function App() {
               <Route path="/new-exam" element={<NewExam />} />
               <Route path="/conflicts" element={<Conflicts />} />
               <Route path="/schedule" element={<FinalSchedule />} />
+              <Route path="/exam-imports" element={<ExamImports />} />
+              <Route path="/calendar" element={<CalendarView />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>

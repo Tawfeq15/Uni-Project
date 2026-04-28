@@ -1,0 +1,63 @@
+# Root-level gitignore — Laravel backend + React/Vite frontend
+
+# ── Environment files ─────────────────────────────────────────────────────────
+.env
+*.env.local
+*.env.*.local
+
+# ── Laravel backend ───────────────────────────────────────────────────────────
+backend-php/.env
+backend-php/vendor/
+backend-php/node_modules/
+backend-php/storage/logs/*
+backend-php/storage/framework/cache/*
+backend-php/storage/framework/sessions/*
+backend-php/storage/framework/views/*
+backend-php/storage/app/private/uploads/*
+backend-php/storage/app/public/uploads/*
+backend-php/bootstrap/cache/*
+!backend-php/storage/logs/.gitkeep
+!backend-php/storage/framework/cache/.gitkeep
+!backend-php/storage/framework/sessions/.gitkeep
+!backend-php/storage/framework/views/.gitkeep
+!backend-php/storage/app/private/.gitkeep
+
+# Uploaded Excel/data files — never commit actual university data
+backend-php/storage/app/*.xlsx
+backend-php/storage/app/*.xls
+backend-php/storage/app/**/*.xlsx
+backend-php/storage/app/**/*.xls
+
+# ── Frontend ──────────────────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ── Git artifacts ─────────────────────────────────────────────────────────────
+backend-php/.git/
+
+# ── SQL dumps (do not commit sensitive data) ─────────────────────────────────
+*.sql
+!schema_reference.sql
+
+# ── OS junk ───────────────────────────────────────────────────────────────────
+Thumbs.db
+.DS_Store
+desktop.ini
+*.swp
+*.swo
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/settings.json
+*.suo
+*.user
+
+# ── Temp / debug scripts (do not commit to production) ───────────────────────
+scratch_debug.js
+backend-php/test_db.php
+backend-php/test_parser.php
+backend-php/fix_sessions.php
+backend-php/re_map_rooms.php
+backend-php/update_it_labs.php
+backend-php/cleanup.php
