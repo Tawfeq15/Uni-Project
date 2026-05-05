@@ -1,0 +1,79 @@
+######################################
+# Laravel + Vite — Professional .gitignore
+######################################
+
+# ── Environment ──────────────────────
+.env
+.env.backup
+.env.production
+.env.staging
+.env.*.local
+auth.json
+
+# ── Dependencies ─────────────────────
+/vendor/
+/node_modules/
+
+# ── Build artifacts ───────────────────
+/public/build/
+/public/hot/
+/public/storage/
+
+# ── Laravel storage (keep structure, not content) ──
+/storage/logs/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/app/private/uploads/*
+!/storage/logs/.gitkeep
+!/storage/framework/cache/.gitkeep
+!/storage/framework/sessions/.gitkeep
+!/storage/framework/views/.gitkeep
+!/storage/app/private/uploads/.gitkeep
+
+# ── Database files (SQLite) ──────────
+/database/*.sqlite
+/database/*.sqlite-shm
+/database/*.sqlite-wal
+/database/exam_scheduler.db
+
+# ── Laravel specific ─────────────────
+/storage/*.key
+/storage/pail/
+bootstrap/cache/*.php
+
+# ── Debug / Scratch scripts ──────────
+test_*.php
+fix_*.php
+cleanup.php
+re_map_rooms.php
+scratch_*.js
+scratch_*.php
+
+# ── IDE & OS ─────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.phpactor.json
+.phpunit.result.cache
+/.phpunit.cache/
+/.fleet/
+/.idea/
+/.nova/
+/.vscode/
+/.zed/
+.styleci.yml
+
+# ── Composer / NPM ───────────────────
+composer.phar
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ── Laravel Homestead ─────────────────
+Homestead.json
+Homestead.yaml
