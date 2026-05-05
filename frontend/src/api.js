@@ -54,7 +54,20 @@ export const roomsAPI = {
   create: (data) => request('/rooms', { method: 'POST', body: JSON.stringify(data) }),
   update: (id, data) => request(`/rooms/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id) => request(`/rooms/${id}`, { method: 'DELETE' }),
+  available: (params = {}) => {
+    // Flatten selected_sections array into repeated params
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (Array.isArray(v)) {
+        v.forEach(item => q.append(`${k}[]`, typeof item === 'object' ? (item.section_number ?? JSON.stringify(item)) : item));
+      } else if (v !== null && v !== undefined && v !== '') {
+        q.append(k, v);
+      }
+    });
+    return request(`/rooms/available?${q.toString()}`);
+  },
 };
+
 
 // ── Courses ───────────────────────────────────────────────────────────────────
 export const coursesAPI = {
@@ -80,10 +93,17 @@ export const availabilityAPI = {
     const q = new URLSearchParams(params).toString();
     return request(`/availability/free-slots${q ? '?' + q : ''}`);
   },
-  rooms:   (faculty) => request(`/availability/rooms${faculty ? '?faculty=' + encodeURIComponent(faculty) : ''}`),
-  roomDay: (room, day) => request(`/availability/room/${encodeURIComponent(room)}/day/${day}`),
-  summary: (faculty) => request(`/availability/summary${faculty ? '?faculty=' + encodeURIComponent(faculty) : ''}`),
+  rooms:          (faculty) => request(`/availability/rooms${faculty ? '?faculty=' + encodeURIComponent(faculty) : ''}`),
+  roomDay:        (room, day) => request(`/availability/room/${encodeURIComponent(room)}/day/${day}`),
+  roomDaySessions:(room, day) => request(`/availability/room/${encodeURIComponent(room)}/day/${day}/sessions`),
+  activeSessions: (faculty = 'it_library') => {
+    const dayMap = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+    const localDay = dayMap[new Date().getDay()];
+    return request(`/availability/active-sessions?faculty=${faculty}&day=${localDay}&from=08:00&to=16:00`);
+  },
+  summary:        (faculty) => request(`/availability/summary${faculty ? '?faculty=' + encodeURIComponent(faculty) : ''}`),
 };
+
 
 // ── Exams ─────────────────────────────────────────────────────────────────────
 export const examsAPI = {
@@ -109,8 +129,13 @@ export const examsAPI = {
     const q = new URLSearchParams(params).toString();
     return request(`/exams/scheduled${q ? '?' + q : ''}`);
   },
-  showScheduled:  (id) => request(`/exams/scheduled/${id}`),
-  deleteScheduled:(id) => request(`/exams/scheduled/${id}`, { method: 'DELETE', body: JSON.stringify(withOperator({})) }),
+  showScheduled:          (id) => request(`/exams/scheduled/${id}`),
+  updateScheduled:        (id, data) => request(`/exams/scheduled/${id}`, { method: 'PUT', body: JSON.stringify(withOperator(data)) }),
+  rescheduleScheduled:    (id, data) => request(`/exams/scheduled/${id}/reschedule`, { method: 'POST', body: JSON.stringify(withOperator(data)) }),
+  cancelScheduled:        (id, reason) => request(`/exams/scheduled/${id}/cancel`, { method: 'POST', body: JSON.stringify(withOperator({ reason })) }),
+  deleteScheduled:        (id) => request(`/exams/scheduled/${id}`, { method: 'DELETE', body: JSON.stringify(withOperator({})) }),
+  getAudit:               (id) => request(`/exams/scheduled/${id}/audit`),
+  getLecturers:           () => request('/exams/lecturers'),
 };
 
 // ── Exam Schedule Imports (From Other Faculties) ──────────────
@@ -176,20 +201,35 @@ export function formatConflictErrors(err) {
   if (!err.isConflict || !err.conflicts?.length) return err.message;
 
   const typeLabels = {
-    room_conflict:         '🏢 تعارض في القاعة',
-    lecture_conflict:      '📚 تعارض مع محاضرة',
-    instructor_conflict:   '👨‍🏫 تعارض في جدول المحاضر',
-    section_conflict:      '👥 تعارض في الشعبة',
-    capacity_conflict:     '⚠️ السعة غير كافية',
-    blackout_date:         '🚫 تاريخ محظور',
-    outside_working_hours: '⏰ خارج ساعات الدوام',
-    invalid_time:          '❌ وقت غير صالح',
+    room_conflict:                 '🏢 تعارض في القاعة',
+    lecture_conflict:              '📚 تعارض مع محاضرة مادة أخرى',
+    uncertain_lecture_conflict:    '❔ استخدام غير مؤكد للمختبر',
+    own_course_lecture_ignored:    'ℹ️ تم تجاهل محاضرة نفس المادة',
+    own_course_lecture_warning:    '⚠️ محاضرة نفس المادة (تحقق)',
+    instructor_conflict:           '👨‍🏫 تعارض في جدول المحاضر',
+    section_conflict:              '👥 تعارض في الشعبة',
+    capacity_conflict:             '⚠️ السعة غير كافية',
+    blackout_date:                 '🚫 تاريخ محظور',
+    outside_working_hours:         '⏰ خارج ساعات الدوام',
+    invalid_time:                  '❌ وقت غير صالح',
   };
 
-  const lines = err.conflicts.map(c => {
+  // Separate blocking from non-blocking
+  const blocking = err.conflicts.filter(c => !['own_course_lecture_ignored','own_course_lecture_warning','capacity_conflict'].includes(c.type));
+  const nonBlocking = err.conflicts.filter(c => ['own_course_lecture_ignored','own_course_lecture_warning','capacity_conflict'].includes(c.type));
+
+  const lines = blocking.map(c => {
     const label = typeLabels[c.type] || c.type;
     return `${label}: ${c.message}`;
   });
 
-  return `${err.message}\n\n${lines.join('\n')}`;
+  const warnLines = nonBlocking.map(c => {
+    const label = typeLabels[c.type] || c.type;
+    return `${label}: ${c.message}`;
+  });
+
+  let result = err.message;
+  if (lines.length) result += `\n\n${lines.join('\n')}`;
+  if (warnLines.length) result += `\n\nتحذيرات:\n${warnLines.join('\n')}`;
+  return result;
 }

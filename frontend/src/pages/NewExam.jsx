@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { examsAPI, availabilityAPI, formatConflictErrors, coursesAPI } from '../api';
 import { useToast } from '../components/Toast';
 
@@ -114,6 +115,9 @@ export default function NewExam() {
   const [courses, setCourses] = useState([]);
   const [conflictDetails, setConflictDetails] = useState([]);
   
+  const location = useLocation();
+  const editExam = location.state?.editExam;
+  
   // Duplicate replacement state
   const [duplicateModal, setDuplicateModal] = useState({ show: false, details: null });
 
@@ -126,6 +130,22 @@ export default function NewExam() {
     loadRequests(); 
     coursesAPI.list().then(data => setCourses(data.data || []));
   }, []);
+
+  // Pre-fill form if editing an existing exam
+  useEffect(() => {
+    if (editExam) {
+      setForm(prev => ({
+        ...prev,
+        faculty: editExam.faculty || '',
+        student_count: editExam.student_count || '',
+        course_code: editExam.course_code || '',
+        course_name: editExam.course_name || '',
+      }));
+      if (editExam.course_code) {
+        handleCourseSelect(editExam.course_code, editExam.course_name);
+      }
+    }
+  }, [editExam]);
 
   // Recalculate total students, sections, and lecturers when selected sections change
   useEffect(() => {
@@ -742,9 +762,9 @@ export default function NewExam() {
                     gap: 6,
                   }}>
                     🕐 سيتم البحث في النطاق الزمني:{' '}
-                    <strong dir="ltr" style={{ display: 'inline-block' }}>
-                      {formatTime12(form.preferred_time_from)} – {formatTime12(form.preferred_time_to)}
-                    </strong>
+                    <div className="badge badge-gray" style={{ fontSize: '0.85rem' }}>
+                      <span dir="ltr">{formatTime12(form.preferred_time_from)} - {formatTime12(form.preferred_time_to)}</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -949,8 +969,9 @@ export default function NewExam() {
                         {duplicateModal.details.existing_exams?.map(ex => (
                           <li key={ex.id}>
                             تاريخ {ex.date || ex.day} | 
-                            من {formatTime12(ex.start_time)} إلى {formatTime12(ex.end_time)} | 
-                            ({ex.rooms?.join(',')})
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: 4 }}>
+                              <span dir="ltr">{formatTime12(ex.start_time)} - {formatTime12(ex.end_time)}</span> | 📍 {ex.room_names?.join('، ')}
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -1110,7 +1131,7 @@ export default function NewExam() {
                         <td>{getFacultyLabel(r.faculty)}</td>
                         <td style={{ fontSize: '0.78rem' }}>
                           {r.time_allocation_mode === 'manual'
-                            ? <span dir="ltr">{DAY_AR[r.preferred_day] || r.preferred_day}<br/>{formatTime12(r.preferred_time_from)} – {formatTime12(r.preferred_time_to)}</span>
+                            ? <span dir="ltr">{DAY_AR[r.preferred_day] || r.preferred_day}<br/>{formatTime12(r.preferred_time_from)} - {formatTime12(r.preferred_time_to)}</span>
                             : <span className="badge badge-primary">تلقائي</span>}
                         </td>
                         <td><span className={`badge ${s.cls}`}>{s.label}</span></td>

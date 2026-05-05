@@ -3,10 +3,14 @@ import { uploadsAPI } from '../api';
 import { useToast } from '../components/Toast';
 
 const FACULTY_LABELS = {
-  it: '🖥️ مبنى IT',
-  library: '📚 مبنى المكتبة',
-  mixed: '🏢 IT + المكتبة',
-  unknown: '❓ غير محدد',
+  it:           '🖥️ مبنى IT',
+  library:      '📚 مبنى المكتبة',
+  media:        '🎬 كلية الإعلام',
+  architecture: '🏛️ كلية الهندسة',
+  literature:   '📖 كلية الآداب',
+  law:          '⚖️ كلية الحقوق',
+  mixed:        '🏢 متعدد الكليات',
+  unknown:      '❓ غير محدد',
 };
 
 const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.webp'];
@@ -364,8 +368,8 @@ export default function Uploads() {
                     )}
                   </td>
                   <td>
-                    <span className="badge badge-primary">
-                      {FACULTY_LABELS[f.faculty] || f.faculty}
+                    <span className="badge badge-primary" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      {f.faculty ? f.faculty.split(',').map(fac => FACULTY_LABELS[fac.trim()] || fac.trim()).join(' + ') : '❓ غير محدد'}
                     </span>
                   </td>
                   <td>

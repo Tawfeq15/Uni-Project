@@ -144,6 +144,7 @@ export default function Availability() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [roomDetails, setRoomDetails] = useState({});
+  const [sessionDetails, setSessionDetails] = useState({});
   const [filters, setFilters] = useState({ faculty: '', day: '', duration: '', studentCount: '' });
   const toast = useToast();
 
@@ -183,6 +184,19 @@ export default function Availability() {
     } catch {}
   }
 
+  async function loadRoomDaySessions(room, day) {
+    const key = `${room}___${day}`;
+    if (sessionDetails[key] !== undefined) return; // already loaded
+    // Mark as loading
+    setSessionDetails(prev => ({ ...prev, [key]: null }));
+    try {
+      const data = await availabilityAPI.roomDaySessions(room, day);
+      setSessionDetails(prev => ({ ...prev, [key]: data.sessions || [] }));
+    } catch {
+      setSessionDetails(prev => ({ ...prev, [key]: [] }));
+    }
+  }
+
   function setFilter(key, val) {
     setFilters(prev => ({ ...prev, [key]: val }));
   }
@@ -210,7 +224,7 @@ export default function Availability() {
       <div className="page-header">
         <div>
           <h1 className="page-title">🔬 المختبرات المتاحة</h1>
-          <p className="page-subtitle">عرض الأوقات الحرة والمشغولة لكل مختبر (8:00 – 16:00)</p>
+          <p className="page-subtitle">عرض الأوقات الحرة والمشغولة لكل مختبر <span dir="ltr">(08:00 - 16:00)</span></p>
         </div>
         <button className="btn btn-secondary btn-sm" onClick={load}>🔄 تحديث</button>
       </div>
@@ -310,7 +324,9 @@ export default function Availability() {
                 slotData={slotData}
                 hasSlots={hasSlots}
                 loadRoomDay={loadRoomDay}
+                loadRoomDaySessions={loadRoomDaySessions}
                 roomDetails={roomDetails}
+                sessionDetails={sessionDetails}
                 filterDay={filters.day}
                 filterDuration={filters.duration}
               />
@@ -322,15 +338,21 @@ export default function Availability() {
   );
 }
 
-function LabCard({ roomName, capacity, faculty, info, dbRoom, slotData, hasSlots, loadRoomDay, roomDetails, filterDay, filterDuration }) {
+function LabCard({ roomName, capacity, faculty, info, dbRoom, slotData, hasSlots, loadRoomDay, loadRoomDaySessions, roomDetails, sessionDetails, filterDay, filterDuration }) {
   const [expanded, setExpanded] = useState(false);
 
   const DAYS_CONSTANT = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
 
+  // Only show session details for IT and Library rooms
+  const showSessions = ['it', 'library', 'mixed'].includes(faculty);
+
   function toggle() {
     setExpanded(e => !e);
     if (!expanded) {
-      DAYS_CONSTANT.forEach(day => loadRoomDay(roomName, day));
+      DAYS_CONSTANT.forEach(day => {
+        loadRoomDay(roomName, day);
+        if (showSessions) loadRoomDaySessions(roomName, day);
+      });
     }
   }
 
@@ -340,6 +362,11 @@ function LabCard({ roomName, capacity, faculty, info, dbRoom, slotData, hasSlots
 
   const buildingColor = faculty === 'it' ? 'var(--info)' : 'var(--primary)';
   const buildingLabel = info.building || faculty;
+
+  const DAY_AR_LOCAL = {
+    sunday: 'الأحد', monday: 'الاثنين', tuesday: 'الثلاثاء',
+    wednesday: 'الأربعاء', thursday: 'الخميس',
+  };
 
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -425,64 +452,68 @@ function LabCard({ roomName, capacity, faculty, info, dbRoom, slotData, hasSlots
             </div>
           </div>
 
-          {false ? null : (
-            displayDays.map(day => {
-              const key = `${roomName}___${day}`;
-              const details = roomDetails[key];
-              const daySlots = slotData?.days[day] || [];
-              return (
-                <div key={day} style={{ marginBottom: 20 }}>
-                  <div style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: 8, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    📅 {DAY_AR[day] || day}
-                    {daySlots.length > 0 ? (
-                      <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>{daySlots.length} فترة حرة</span>
-                    ) : (
-                      <span className="badge badge-danger" style={{ fontSize: '0.7rem' }}>0 فترة حرة (مشغول بالكامل)</span>
-                    )}
-                  </div>
+          {displayDays.map(day => {
+            const key = `${roomName}___${day}`;
+            const details = roomDetails[key];
+            const sessions = sessionDetails ? sessionDetails[key] : undefined;
+            const daySlots = slotData?.days[day] || [];
 
-                  {/* Timeline */}
-                  {details ? (
-                    details.free.length > 0 ? (
-                      <TimeBar occupied={details.occupied} free={details.free} day={day} filterDuration={filterDuration} />
-                    ) : (
-                      <div style={{ height: 24, background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)', fontSize: '0.8rem', fontWeight: 600 }}>
-                        ❌ مشغول بالكامل (لا توجد فترات حرة تتسع لامتحان)
-                      </div>
-                    )
+            return (
+              <div key={day} style={{ marginBottom: 24 }}>
+                {/* Day Header */}
+                <div style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: 8, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  📅 {DAY_AR_LOCAL[day] || day}
+                  {daySlots.length > 0 ? (
+                    <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>{daySlots.length} فترة حرة</span>
                   ) : (
-                    <div style={{ height: 24, background: 'var(--bg-hover)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span className="spinner spinner-sm"></span>
-                    </div>
+                    <span className="badge badge-danger" style={{ fontSize: '0.7rem' }}>0 فترة حرة (مشغول بالكامل)</span>
                   )}
-
-                  {/* Free slots chips */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                    {daySlots.map((slot, i) => {
-                      const minDur = filterDuration ? parseInt(filterDuration) : 60;
-                      const isShort = slot.duration_minutes < minDur;
-                      return (
-                        <div key={i} style={{
-                          background: isShort ? 'var(--bg-secondary)' : 'var(--success-bg)',
-                          border: isShort ? '1px solid var(--border)' : '1px solid rgba(34,197,94,0.25)',
-                          borderRadius: 6,
-                          padding: '4px 12px',
-                          fontSize: '0.78rem',
-                          color: isShort ? 'var(--text-muted)' : 'var(--success)',
-                          fontWeight: 600,
-                        }}>
-                          <span dir="ltr" style={{ display: 'inline-block' }}>{slot.available_from} - {slot.available_to}</span>
-                          <span style={{ opacity: 0.7, marginRight: 4 }}>({slot.duration_minutes}د)</span>
-                        </div>
-                      );
-                    })}
-                  </div>
                 </div>
-              );
-            })
-          )}
+
+                {/* Timeline */}
+                {details ? (
+                  details.free.length > 0 ? (
+                    <TimeBar occupied={details.occupied} free={details.free} day={day} filterDuration={filterDuration} />
+                  ) : (
+                    <div style={{ height: 24, background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)', fontSize: '0.8rem', fontWeight: 600 }}>
+                      ❌ مشغول بالكامل (لا توجد فترات حرة تتسع لامتحان)
+                    </div>
+                  )
+                ) : (
+                  <div style={{ height: 24, background: 'var(--bg-hover)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span className="spinner spinner-sm"></span>
+                  </div>
+                )}
+
+                {/* Free slots chips */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                  {daySlots.map((slot, i) => {
+                    const minDur = filterDuration ? parseInt(filterDuration) : 60;
+                    const isShort = slot.duration_minutes < minDur;
+                    return (
+                      <div key={i} style={{
+                        background: isShort ? 'var(--bg-secondary)' : 'var(--success-bg)',
+                        border: isShort ? '1px solid var(--border)' : '1px solid rgba(34,197,94,0.25)',
+                        borderRadius: 6,
+                        padding: '4px 12px',
+                        fontSize: '0.78rem',
+                        color: isShort ? 'var(--text-muted)' : 'var(--success)',
+                        fontWeight: 600,
+                      }}>
+                        <span dir="ltr" style={{ display: 'inline-block' }}>{slot.available_from} - {slot.available_to}</span>
+                        <span style={{ opacity: 0.7, marginRight: 4 }}>({slot.duration_minutes}د)</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
+

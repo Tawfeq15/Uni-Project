@@ -50,12 +50,14 @@
   
   --transition:     all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   --glass-blur:     blur(20px);
+  --bg-lighter:     rgba(40, 48, 70, 0.9);
 }
 
 html {
   direction: rtl;
-  font-size: 14px;
+  font-size: 15px;
   scroll-behavior: smooth;
+  zoom: 0.8;
 }
 
 body {
@@ -82,15 +84,20 @@ body {
   to { opacity: 1; transform: scale(1); }
 }
 
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.3); }
+}
+
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out forwards;
 }
 
 /* Typography */
-h1 { font-size: 1.75rem; font-weight: 700; }
-h2 { font-size: 1.4rem; font-weight: 600; }
-h3 { font-size: 1.15rem; font-weight: 600; }
-h4 { font-size: 1rem; font-weight: 600; }
+h1 { font-size: 1.85rem; font-weight: 700; }
+h2 { font-size: 1.5rem; font-weight: 600; }
+h3 { font-size: 1.2rem; font-weight: 600; }
+h4 { font-size: 1.05rem; font-weight: 600; }
 
 /* Layout */
 .app-layout {
@@ -178,7 +185,7 @@ h4 { font-size: 1rem; font-weight: 600; }
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   text-decoration: none;
-  font-size: 0.875rem;
+  font-size: 0.92rem;
   font-weight: 500;
   cursor: pointer;
   transition: var(--transition);
@@ -262,14 +269,14 @@ h4 { font-size: 1rem; font-weight: 600; }
 }
 
 .page-title {
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.2;
 }
 
 .page-subtitle {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: var(--text-secondary);
   margin-top: 4px;
 }
@@ -299,7 +306,7 @@ h4 { font-size: 1rem; font-weight: 600; }
 }
 
 .card-title {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -387,7 +394,7 @@ h4 { font-size: 1rem; font-weight: 600; }
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
 }
 
 thead tr {
@@ -397,7 +404,7 @@ thead tr {
 th {
   padding: 12px 16px;
   text-align: right;
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   font-weight: 600;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border);
@@ -430,7 +437,7 @@ tbody tr:hover {
   gap: 6px;
   padding: 8px 16px;
   border-radius: var(--radius-sm);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -478,8 +485,8 @@ tbody tr:hover {
 }
 
 .btn-sm {
-  padding: 5px 10px;
-  font-size: 0.78rem;
+  padding: 6px 12px;
+  font-size: 0.82rem;
 }
 
 .btn-icon {
@@ -500,7 +507,7 @@ tbody tr:hover {
   gap: 4px;
   padding: 3px 10px;
   border-radius: 20px;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -519,7 +526,7 @@ tbody tr:hover {
 
 .form-label {
   display: block;
-  font-size: 0.82rem;
+  font-size: 0.86rem;
   font-weight: 600;
   color: var(--text-secondary);
   margin-bottom: 6px;
@@ -532,7 +539,7 @@ tbody tr:hover {
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 0.875rem;
+  font-size: 0.92rem;
   padding: 9px 12px;
   transition: var(--transition);
   outline: none;
@@ -584,7 +591,7 @@ select.form-control {
   gap: 10px;
   padding: 12px 16px;
   border-radius: var(--radius-sm);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   line-height: 1.5;
   margin-bottom: 16px;
 }

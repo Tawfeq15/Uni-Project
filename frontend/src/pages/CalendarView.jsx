@@ -86,9 +86,10 @@ export default function CalendarView() {
   const eventStyleGetter = (event) => {
     const status = event.resource?.status;
     let bg = 'var(--primary)';
-    if (status === 'cancelled' || status === 'rejected') bg = 'var(--danger)';
-    else if (status === 'registrar_approved') bg = '#16a34a';
-    return { style: { backgroundColor: bg, borderRadius: 4, color: '#fff', border: '0', display: 'block' } };
+    if (status === 'cancelled' || status === 'replaced') bg = 'rgba(239, 68, 68, 0.6)'; // Soft red
+    else if (event.resource?.source_type === 'rescheduled') bg = 'var(--warning)';
+    else if (status === 'scheduled') bg = 'var(--success)';
+    return { style: { backgroundColor: bg, borderRadius: 4, color: '#fff', border: 'none', display: 'block' } };
   };
 
   async function handleSelectEvent(event) {
@@ -178,6 +179,7 @@ export default function CalendarView() {
               endAccessor="end"
               messages={messagesAr}
               culture="ar-SA"
+              rtl={true}
               eventPropGetter={eventStyleGetter}
               style={{ height: '100%', fontFamily: 'inherit' }}
               onSelectEvent={handleSelectEvent}
@@ -201,7 +203,7 @@ export default function CalendarView() {
                 <CalRow label="كود المادة" value={<strong style={{ color: 'var(--accent)' }}>{selectedEvent.course_code}</strong>} />
                 <CalRow label="اسم المادة" value={selectedEvent.course_name} />
                 <CalRow label="التاريخ" value={selectedEvent.exam_date} />
-                <CalRow label="الوقت" value={selectedEvent.start_time && `${selectedEvent.start_time} – ${selectedEvent.end_time}`} />
+                <CalRow label="الوقت" value={selectedEvent.start_time && <span dir="ltr">{selectedEvent.start_time} - {selectedEvent.end_time}</span>} />
                 <CalRow label="المدة" value={selectedEvent.duration_minutes ? `${selectedEvent.duration_minutes} دقيقة` : null} />
                 <CalRow label="المحاضر" value={selectedEvent.lecturer} />
                 <CalRow label="القاعات" value={

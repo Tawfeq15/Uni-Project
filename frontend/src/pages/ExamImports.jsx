@@ -2,15 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { examImportsAPI } from '../api';
 import { useToast } from '../components/Toast';
 
-const FACULTY_OPTIONS = [
-  { value: 'all', label: 'كل الكليات' },
-  { value: 'it', label: 'مختبرات IT' },
-  { value: 'library', label: 'مختبرات المكتبة' },
-  { value: 'media', label: 'مختبرات الإعلام' },
-  { value: 'literature', label: 'مختبرات الآداب' },
-  { value: 'law', label: 'مختبرات الحقوق' },
-  { value: 'architecture', label: 'مختبرات العمارة' },
-];
+
 
 function formatDateTime(dt) {
   if (!dt) return '-';
@@ -28,7 +20,6 @@ export default function ExamImports() {
   const [selectedFile, setSelectedFile] = useState(null);
   
   // Import settings
-  const [faculty, setFaculty] = useState('it');
   const [academicYear, setAcademicYear] = useState('2025-2026');
   const [semester, setSemester] = useState('First');
   const [examPeriod, setExamPeriod] = useState('Midterm');
@@ -72,13 +63,12 @@ export default function ExamImports() {
 
   async function handlePreview(overrideMapping = null) {
     if (!selectedFile) return toast('يجب اختيار ملف', 'warning');
-    if (!faculty) return toast('يجب تحديد الكلية/المبنى', 'warning');
 
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-      formData.append('faculty', faculty);
+      formData.append('faculty', 'all');
       formData.append('academic_year', academicYear);
       formData.append('semester', semester);
       formData.append('exam_period', examPeriod);
@@ -189,13 +179,7 @@ export default function ExamImports() {
           <h3 className="card-title">إعدادات ملف الاستيراد</h3>
         </div>
         <div className="form-row" style={{ marginBottom: 20 }}>
-          <div className="form-group">
-            <label className="form-label">الكلية / المبنى المستهدف</label>
-            <select className="form-control" value={faculty} onChange={e => setFaculty(e.target.value)}>
-              {FACULTY_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-            </select>
-          </div>
-          <div className="form-group">
+          <div className="form-group" style={{ flex: 1, minWidth: '300px' }}>
             <label className="form-label">العام الجامعي</label>
             <input type="text" className="form-control" value={academicYear} onChange={e => setAcademicYear(e.target.value)} />
           </div>
@@ -387,7 +371,7 @@ export default function ExamImports() {
             </div>
 
             <div style={{ display: 'flex', gap: 10 }}>
-              <button className="btn btn-success" onClick={handleConfirm} disabled={confirming || previewData.valid === 0}>
+              <button className="btn btn-success" onClick={handleConfirm} disabled={confirming || (previewData.valid + previewData.warning + previewData.conflict) === 0}>
                 {confirming ? 'جاري الاستيراد...' : `✅ تأكيد استيراد وحجز (${previewData.valid + previewData.warning + previewData.conflict}) صفوف`}
               </button>
               <button className="btn btn-secondary" onClick={handleCancelPreview} disabled={confirming}>
@@ -414,7 +398,7 @@ export default function ExamImports() {
               <tr>
                 <th>#</th>
                 <th>اسم الملف</th>
-                <th>المبنى</th>
+
                 <th>الفترة</th>
                 <th>الصفوف المستوردة</th>
                 <th>الحالة</th>
@@ -427,7 +411,7 @@ export default function ExamImports() {
                 <tr key={im.id}>
                   <td className="text-muted">{im.id}</td>
                   <td style={{ fontWeight: 600 }}>{im.original_filename}</td>
-                  <td><span className="badge badge-primary">{im.faculty}</span></td>
+
                   <td>{im.academic_year} - {im.semester} - {im.exam_period}</td>
                   <td>
                     <span className="badge badge-info">{im.imported_rows || 0} / {im.total_rows || 0}</span>
