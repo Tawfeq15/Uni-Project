@@ -151,6 +151,36 @@ This project operates in a **"No-Login Mode"** for streamlined administrative us
 
 ---
 
+---
+
+## 🚀 Deployment
+
+### Project Setup Locally
+1. `cd backend-php`
+2. `composer install`
+3. `cp .env.example .env`
+4. `php artisan key:generate`
+5. `php artisan migrate`
+6. `cd ../frontend`
+7. `npm install`
+8. `npm run dev`
+
+### Ubuntu Deployment Basic
+1. `git clone repo`
+2. `composer install --no-dev --optimize-autoloader`
+3. `cp .env.example .env`
+4. Configure `.env`
+5. `php artisan key:generate`
+6. `php artisan migrate --force`
+7. `npm install`
+8. `npm run build`
+9. Configure nginx
+
+> [!WARNING]
+> **Security Warning**: Never commit `.env`, database dumps (`.sql`), uploaded Excel files, `vendor`, or `node_modules`. These are already included in `.gitignore`.
+
+---
+
 <div align="center">
 Built with ❤️ for University Administration
 </div>

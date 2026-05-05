@@ -1,63 +1,70 @@
-# Root-level gitignore — Laravel backend + React/Vite frontend
-
-# ── Environment files ─────────────────────────────────────────────────────────
+# Environment files
 .env
-*.env.local
-*.env.*.local
-
-# ── Laravel backend ───────────────────────────────────────────────────────────
+.env.*
+!.env.example
 backend-php/.env
+backend-php/.env.*
+!backend-php/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Dependencies
 backend-php/vendor/
-backend-php/node_modules/
+frontend/node_modules/
+vendor/
+node_modules/
+
+# Frontend build
+frontend/dist/
+frontend/build/
+frontend/.vite/
+
+# Laravel build/cache/storage content
+backend-php/public/build/
+backend-php/public/hot
+backend-php/public/storage
 backend-php/storage/logs/*
 backend-php/storage/framework/cache/*
 backend-php/storage/framework/sessions/*
 backend-php/storage/framework/views/*
 backend-php/storage/app/private/uploads/*
-backend-php/storage/app/public/uploads/*
-backend-php/bootstrap/cache/*
+
+# Keep folder structure
 !backend-php/storage/logs/.gitkeep
 !backend-php/storage/framework/cache/.gitkeep
 !backend-php/storage/framework/sessions/.gitkeep
 !backend-php/storage/framework/views/.gitkeep
-!backend-php/storage/app/private/.gitkeep
+!backend-php/storage/app/private/uploads/.gitkeep
 
-# Uploaded Excel/data files — never commit actual university data
-backend-php/storage/app/*.xlsx
-backend-php/storage/app/*.xls
-backend-php/storage/app/**/*.xlsx
-backend-php/storage/app/**/*.xls
+# Laravel cache
+backend-php/bootstrap/cache/*.php
+backend-php/storage/*.key
 
-# ── Frontend ──────────────────────────────────────────────────────────────────
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-
-# ── Git artifacts ─────────────────────────────────────────────────────────────
-backend-php/.git/
-
-# ── SQL dumps (do not commit sensitive data) ─────────────────────────────────
+# Sensitive/user data
 *.sql
-!schema_reference.sql
+*.xlsx
+*.xls
+*.csv
+*.log
 
-# ── OS junk ───────────────────────────────────────────────────────────────────
-Thumbs.db
+# OS/IDE
 .DS_Store
-desktop.ini
-*.swp
-*.swo
-
-# ── IDE ───────────────────────────────────────────────────────────────────────
+Thumbs.db
+Desktop.ini
 .idea/
-.vscode/settings.json
-*.suo
-*.user
+.vscode/
+.zed/
+.fleet/
 
-# ── Temp / debug scripts (do not commit to production) ───────────────────────
-scratch_debug.js
-backend-php/test_db.php
-backend-php/test_parser.php
-backend-php/fix_sessions.php
-backend-php/re_map_rooms.php
-backend-php/update_it_labs.php
-backend-php/cleanup.php
+# Scratch/debug files
+test_*.php
+fix_*.php
+cleanup.php
+scratch_*.php
+scratch_*.js
+re_map_rooms.php
+
+# PHPUnit
+.phpunit.result.cache
+backend-php/.phpunit.cache/
