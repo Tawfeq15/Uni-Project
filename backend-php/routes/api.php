@@ -104,3 +104,15 @@ Route::get('/schedule/export/pdf',     [ScheduleController::class, 'exportPdf'])
 Route::get('/blackout-dates',          [BlackoutDatesController::class, 'index']);
 Route::post('/blackout-dates',         [BlackoutDatesController::class, 'store']);
 Route::delete('/blackout-dates/{id}',  [BlackoutDatesController::class, 'destroy']);
+
+// ── Final Computerized Import (استيراد النهائي المحوسب) ────────────────────
+// ISOLATED FEATURE — does not affect any existing import workflow
+use App\Http\Controllers\Api\FinalComputerizedImportController;
+Route::get('/final-computerized-imports/available-labs', [FinalComputerizedImportController::class, 'availableLabs']);
+Route::post('/final-computerized-imports/preview',       [FinalComputerizedImportController::class, 'preview']);
+Route::get('/final-computerized-imports',                [FinalComputerizedImportController::class, 'index']);
+Route::get('/final-computerized-imports/{id}',           [FinalComputerizedImportController::class, 'show']);
+Route::get('/final-computerized-imports/{id}/rows',      [FinalComputerizedImportController::class, 'rows']);
+Route::post('/final-computerized-imports/{id}/assign-labs', [FinalComputerizedImportController::class, 'assignLabs']);
+Route::post('/final-computerized-imports/{id}/confirm',  [FinalComputerizedImportController::class, 'confirm']);
+Route::get('/final-computerized-imports/{id}/export-excel', [FinalComputerizedImportController::class, 'exportExcel']);

@@ -20,15 +20,15 @@ use Illuminate\Support\Facades\DB;
 class SchedulingConflictService
 {
     // ── Config Defaults (overridable via .env) ────────────────────────────
-    private int   $workStartMinutes;
-    private int   $workEndMinutes;
-    private int   $minDurationMinutes;
-    private int   $maxDurationMinutes;
+    private int $workStartMinutes;
+    private int $workEndMinutes;
+    private int $minDurationMinutes;
+    private int $maxDurationMinutes;
 
     public function __construct()
     {
-        $this->workStartMinutes   = $this->parseTime(env('EXAM_WORK_START', '08:00'));
-        $this->workEndMinutes     = $this->parseTime(env('EXAM_WORK_END',   '18:00'));
+        $this->workStartMinutes = $this->parseTime(env('EXAM_WORK_START', '08:00'));
+        $this->workEndMinutes = $this->parseTime(env('EXAM_WORK_END', '18:00'));
         $this->minDurationMinutes = (int) env('EXAM_MIN_DURATION', 30);
         $this->maxDurationMinutes = (int) env('EXAM_MAX_DURATION', 240);
     }
@@ -58,19 +58,20 @@ class SchedulingConflictService
     public function getAllConflicts(array $data): array
     {
         $conflicts = [];
-        
+
         $isFullDay = filter_var($data['is_full_day'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         // Normalize Date & Time
         $dtService = app(DateTimeNormalizationService::class);
         $data['exam_date'] = $dtService->normalizeDate($data['exam_date'] ?? null);
-        
+
         if (!$isFullDay) {
             $data['start_time'] = $dtService->normalizeTime($data['start_time'] ?? null);
             $data['end_time'] = $dtService->normalizeTime($data['end_time'] ?? null);
-            
+
             $conflicts = array_merge($conflicts, $this->validateTimeRange($data));
-            if (!empty($conflicts)) return $conflicts; // stop early if time is invalid
+            if (!empty($conflicts))
+                return $conflicts; // stop early if time is invalid
 
             $conflicts = array_merge($conflicts, $this->validateWorkingHours($data));
         } else {
@@ -129,7 +130,7 @@ class SchedulingConflictService
         $conflicts = [];
 
         $start = trim($data['start_time'] ?? '');
-        $end   = trim($data['end_time'] ?? '');
+        $end = trim($data['end_time'] ?? '');
 
         if (empty($start) || empty($end)) {
             $conflicts[] = $this->makeConflict(
@@ -149,8 +150,8 @@ class SchedulingConflictService
 
         if (empty($conflicts)) {
             $startMin = $this->parseTime($start);
-            $endMin   = $this->parseTime($end);
-            $dur      = $endMin - $startMin;
+            $endMin = $this->parseTime($end);
+            $dur = $endMin - $startMin;
 
             if ($startMin >= $endMin) {
                 $conflicts[] = $this->makeConflict('invalid_time', 'وقت البداية يجب أن يكون قبل وقت النهاية', []);
@@ -182,11 +183,11 @@ class SchedulingConflictService
 
     public function validateWorkingHours(array $data): array
     {
-        $conflicts  = [];
-        $startMin   = $this->parseTime($data['start_time']);
-        $endMin     = $this->parseTime($data['end_time']);
-        $workStart  = $this->minutesToTime($this->workStartMinutes);
-        $workEnd    = $this->minutesToTime($this->workEndMinutes);
+        $conflicts = [];
+        $startMin = $this->parseTime($data['start_time']);
+        $endMin = $this->parseTime($data['end_time']);
+        $workStart = $this->minutesToTime($this->workStartMinutes);
+        $workEnd = $this->minutesToTime($this->workEndMinutes);
 
         if ($startMin < $this->workStartMinutes || $endMin > $this->workEndMinutes) {
             $conflicts[] = $this->makeConflict(
@@ -194,9 +195,9 @@ class SchedulingConflictService
                 "الاختبار خارج ساعات الدوام الجامعي ({$workStart} – {$workEnd})",
                 [
                     'allowed_start' => $workStart,
-                    'allowed_end'   => $workEnd,
+                    'allowed_end' => $workEnd,
                     'requested_start' => $data['start_time'],
-                    'requested_end'   => $data['end_time'],
+                    'requested_end' => $data['end_time'],
                 ]
             );
         }
@@ -211,12 +212,13 @@ class SchedulingConflictService
     public function checkBlackoutDates(array $data): array
     {
         $conflicts = [];
-        $examDate  = $data['exam_date'] ?? null;
-        if (!$examDate) return [];
+        $examDate = $data['exam_date'] ?? null;
+        if (!$examDate)
+            return [];
 
         $blocked = DB::table('blackout_dates')
             ->where('start_date', '<=', $examDate)
-            ->where('end_date',   '>=', $examDate)
+            ->where('end_date', '>=', $examDate)
             ->get();
 
         foreach ($blocked as $b) {
@@ -224,10 +226,10 @@ class SchedulingConflictService
                 'blackout_date',
                 "تاريخ الاختبار ({$examDate}) ضمن فترة محظورة: {$b->title}",
                 [
-                    'blackout_title'      => $b->title,
+                    'blackout_title' => $b->title,
                     'blackout_start_date' => $b->start_date,
-                    'blackout_end_date'   => $b->end_date,
-                    'reason'              => $b->reason,
+                    'blackout_end_date' => $b->end_date,
+                    'reason' => $b->reason,
                 ]
             );
         }
@@ -241,27 +243,28 @@ class SchedulingConflictService
 
     public function checkRoomConflicts(array $data): array
     {
-        $conflicts    = [];
-        $rooms        = $data['rooms'] ?? [];
-        $day          = $data['day'] ?? null;
-        $examDate     = $data['exam_date'] ?? null;
-        $startMin     = $this->parseTime($data['start_time']);
-        $endMin       = $this->parseTime($data['end_time']);
-        $excludeId    = $data['exclude_exam_id'] ?? null;
-        $isFullDay    = filter_var($data['is_full_day'] ?? false, FILTER_VALIDATE_BOOLEAN);
-        $scope        = $data['booking_scope'] ?? 'selected_rooms';
+        $conflicts = [];
+        $rooms = $data['rooms'] ?? [];
+        $day = $data['day'] ?? null;
+        $examDate = $data['exam_date'] ?? null;
+        $startMin = $this->parseTime($data['start_time']);
+        $endMin = $this->parseTime($data['end_time']);
+        $excludeId = $data['exclude_exam_id'] ?? null;
+        $isFullDay = filter_var($data['is_full_day'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $scope = $data['booking_scope'] ?? 'selected_rooms';
 
         // If scope is all_university, grab all rooms
         if ($isFullDay && $scope === 'all_university') {
             $rooms = DB::table('rooms')->pluck('room_name')->toArray();
         }
 
-        if (empty($rooms)) return [];
+        if (empty($rooms))
+            return [];
 
         // Single query for all rooms
         $query = DB::table('scheduled_exams')
             ->where('status', '!=', 'cancelled')
-            ->where(function($q) use ($rooms) {
+            ->where(function ($q) use ($rooms) {
                 foreach ($rooms as $room) {
                     $q->orWhereRaw("JSON_CONTAINS(rooms_json, JSON_QUOTE(?))", [$room]);
                 }
@@ -283,7 +286,7 @@ class SchedulingConflictService
         foreach ($existing as $exam) {
             $exIsFullDay = filter_var($exam->is_full_day ?? false, FILTER_VALIDATE_BOOLEAN);
             $examRooms = json_decode($exam->rooms_json ?? '[]', true) ?: [];
-            
+
             // Determine which requested rooms conflict with this exam
             $conflictingRooms = [];
             if ($exam->booking_scope === 'all_university') {
@@ -295,34 +298,34 @@ class SchedulingConflictService
             foreach ($conflictingRooms as $room) {
                 // If either is a full day booking on the same date/room, it's a conflict
                 if ($isFullDay || $exIsFullDay) {
-                     $conflicts[] = $this->makeConflict(
+                    $conflicts[] = $this->makeConflict(
                         'full_day_conflict',
                         "تعارض في القاعة {$room}: يوجد حجز يوم كامل أو حجز عادي في هذا التاريخ",
                         [
-                            'room'                => $room,
-                            'date'                => $examDate ?? $day,
-                            'existing_exam_id'    => $exam->id,
-                            'existing_course'     => $exam->course_code,
-                            'is_full_day'         => $exIsFullDay
+                            'room' => $room,
+                            'date' => $examDate ?? $day,
+                            'existing_exam_id' => $exam->id,
+                            'existing_course' => $exam->course_code,
+                            'is_full_day' => $exIsFullDay
                         ]
                     );
                     continue; // Skip time check for full-day conflicts
                 }
 
                 $exStart = $this->parseTime($exam->start_time);
-                $exEnd   = $this->parseTime($exam->end_time);
+                $exEnd = $this->parseTime($exam->end_time);
 
                 if ($startMin < $exEnd && $endMin > $exStart) {
                     $conflicts[] = $this->makeConflict(
                         'room_conflict',
                         "تعارض في القاعة {$room}: مشغولة بـ \"{$exam->course_code}\" من {$exam->start_time} إلى {$exam->end_time}",
                         [
-                            'room'                => $room,
-                            'date'                => $examDate ?? $day,
-                            'existing_exam_id'    => $exam->id,
-                            'existing_course'     => $exam->course_code,
+                            'room' => $room,
+                            'date' => $examDate ?? $day,
+                            'existing_exam_id' => $exam->id,
+                            'existing_course' => $exam->course_code,
                             'existing_start_time' => $exam->start_time,
-                            'existing_end_time'   => $exam->end_time,
+                            'existing_end_time' => $exam->end_time,
                         ]
                     );
                 }
@@ -355,12 +358,13 @@ class SchedulingConflictService
     public function checkParsedLectureConflicts(array $data): array
     {
         $conflicts = [];
-        $rooms     = $data['rooms'] ?? [];
-        $examDate  = $data['exam_date'] ?? null;
-        $startMin  = $this->parseTime($data['start_time']);
-        $endMin    = $this->parseTime($data['end_time']);
+        $rooms = $data['rooms'] ?? [];
+        $examDate = $data['exam_date'] ?? null;
+        $startMin = $this->parseTime($data['start_time']);
+        $endMin = $this->parseTime($data['end_time']);
 
-        if (empty($rooms)) return [];
+        if (empty($rooms))
+            return [];
 
         // AUTHORITATIVE: derive exam day from exam_date if available, otherwise fall back to data['day']
         $dayService = app(DayNormalizationService::class);
@@ -368,24 +372,50 @@ class SchedulingConflictService
             ? $dayService->dayFromDate($examDate)
             : ($data['day'] ?? null);
 
-        if (!$examDay) return [];
+        if (!$examDay)
+            return [];
 
         // Fetch sessions for the room WITHOUT day filter in SQL — we do day matching in PHP
         // so we can handle any day format stored in the day column
-        $sessions = DB::table('parsed_sessions as ps')
-            ->join('uploaded_files as uf', 'ps.uploaded_file_id', '=', 'uf.id')
-            ->select('ps.*', 'uf.original_name as source_file')
-            ->whereIn('ps.room', $rooms)
-            ->where('ps.is_valid', 1)
-            ->where('uf.is_active', 1)
-            ->whereNotNull('ps.start_time')
-            ->whereNotNull('ps.end_time')
-            ->get();
+        // In-memory cache to prevent N+1 queries during bulk imports
+        static $sessionsCache = [];
+        $sessions = collect();
+        $uncachedRooms = [];
+
+        foreach ($rooms as $r) {
+            $key = strtolower($r);
+            if (isset($sessionsCache[$key])) {
+                $sessions = $sessions->merge($sessionsCache[$key]);
+            } else {
+                $uncachedRooms[] = $r;
+            }
+        }
+
+        if (!empty($uncachedRooms)) {
+            $fetched = DB::table('parsed_sessions as ps')
+                ->join('uploaded_files as uf', 'ps.uploaded_file_id', '=', 'uf.id')
+                ->select('ps.*', 'uf.original_name as source_file')
+                ->whereIn('ps.room', $uncachedRooms)
+                ->where('ps.is_valid', 1)
+                ->where('uf.is_active', 1)
+                ->whereNotNull('ps.start_time')
+                ->whereNotNull('ps.end_time')
+                ->get();
+            
+            // Group by room to cache
+            $grouped = $fetched->groupBy(fn($item) => strtolower($item->room));
+            foreach ($uncachedRooms as $ur) {
+                $k = strtolower($ur);
+                $sessionsCache[$k] = $grouped->get($k, collect());
+                $sessions = $sessions->merge($sessionsCache[$k]);
+            }
+        }
+
 
         foreach ($sessions as $session) {
             // ── Day matching (the critical fix) ───────────────────────
             $sessionDayInfo = $dayService->getSessionDays($session, $examDate);
-            $sessionDays    = $sessionDayInfo['days'];
+            $sessionDays = $sessionDayInfo['days'];
 
             if (empty($sessionDays)) {
                 // Cannot determine lecture day → uncertain warning (NOT hard block)
@@ -393,12 +423,12 @@ class SchedulingConflictService
                     'uncertain_lecture_conflict',
                     "تعذر تحديد يوم المحاضرة لمادة \"{$session->course_name}\" في القاعة {$session->room} — يرجى المراجعة يدوياً",
                     [
-                        'severity'        => 'warning',
-                        'room'            => $session->room,
-                        'session_id'      => $session->id,
+                        'severity' => 'warning',
+                        'room' => $session->room,
+                        'session_id' => $session->id,
                         'session_day_raw' => $session->day ?? null,
-                        'start_time'      => $session->start_time,
-                        'end_time'        => $session->end_time,
+                        'start_time' => $session->start_time,
+                        'end_time' => $session->end_time,
                     ]
                 );
                 continue;
@@ -410,7 +440,7 @@ class SchedulingConflictService
             }
 
             $sesStart = $this->parseTime($session->start_time);
-            $sesEnd   = $this->parseTime($session->end_time);
+            $sesEnd = $this->parseTime($session->end_time);
 
             // Strict overlap: A.start < B.end AND A.end > B.start (touching is NOT overlap)
             if (!($startMin < $sesEnd && $endMin > $sesStart)) {
@@ -426,13 +456,13 @@ class SchedulingConflictService
                     'own_course_lecture_ignored',
                     'تم تجاهل محاضرة لأنها لنفس المادة والشعبة المشمولة في الامتحان',
                     [
-                        'severity'       => 'info',
-                        'room'           => $session->room,
-                        'course_code'    => $session->course_code ?? null,
-                        'course_name'    => $session->course_name ?? null,
+                        'severity' => 'info',
+                        'room' => $session->room,
+                        'course_code' => $session->course_code ?? null,
+                        'course_name' => $session->course_name ?? null,
                         'section_number' => $session->section ?? null,
-                        'start_time'     => $session->start_time,
-                        'end_time'       => $session->end_time,
+                        'start_time' => $session->start_time,
+                        'end_time' => $session->end_time,
                     ]
                 );
                 continue;
@@ -444,12 +474,12 @@ class SchedulingConflictService
                     'own_course_lecture_warning',
                     'تم تجاهل محاضرة في نفس المختبر لأنها تبدو تابعة لنفس المادة المشمولة بالامتحان.',
                     [
-                        'severity'    => 'warning',
-                        'room'        => $session->room,
+                        'severity' => 'warning',
+                        'room' => $session->room,
                         'course_code' => $session->course_code ?? null,
                         'course_name' => $session->course_name ?? null,
-                        'start_time'  => $session->start_time,
-                        'end_time'    => $session->end_time,
+                        'start_time' => $session->start_time,
+                        'end_time' => $session->end_time,
                     ]
                 );
                 continue;
@@ -461,9 +491,9 @@ class SchedulingConflictService
                     'uncertain_lecture_conflict',
                     "يوجد استخدام للمختبر {$session->room} في نفس الوقت ولكن لا يمكن التأكد من المادة أو الشعبة.",
                     [
-                        'room'       => $session->room,
+                        'room' => $session->room,
                         'start_time' => $session->start_time,
-                        'end_time'   => $session->end_time,
+                        'end_time' => $session->end_time,
                     ]
                 );
                 continue;
@@ -474,14 +504,14 @@ class SchedulingConflictService
                 'lecture_conflict',
                 "المختبر {$session->room} محجوز لمحاضرة مادة أخرى في نفس الوقت: \"{$session->course_name}\"",
                 [
-                    'room'                 => $session->room,
-                    'date'                 => $examDate ?? $day,
-                    'lecture_course'       => $session->course_name,
-                    'lecture_course_code'  => $session->course_code,
-                    'lecture_section'      => $session->section ?? null,
-                    'lecture_start_time'   => $session->start_time,
-                    'lecture_end_time'     => $session->end_time,
-                    'lecture_lecturer'     => $session->lecturer,
+                    'room' => $session->room,
+                    'date' => $examDate ?? $day,
+                    'lecture_course' => $session->course_name,
+                    'lecture_course_code' => $session->course_code,
+                    'lecture_section' => $session->section ?? null,
+                    'lecture_start_time' => $session->start_time,
+                    'lecture_end_time' => $session->end_time,
+                    'lecture_lecturer' => $session->lecturer,
                     'source_schedule_file' => $session->source_file,
                 ]
             );
@@ -500,10 +530,10 @@ class SchedulingConflictService
      */
     public function shouldIgnoreOwnCourseLectureConflict(array $examData, object $session): string|false
     {
-        $examCourseCode   = $this->normalizeCourseCode($examData['course_code'] ?? '');
-        $sessionCourseCode= $this->normalizeCourseCode($session->course_code ?? '');
-        $examCourseName   = $this->normalizeArabicCourseName($examData['course_name'] ?? $examData['name'] ?? '');
-        $sessionCourseName= $this->normalizeArabicCourseName($session->course_name ?? '');
+        $examCourseCode = $this->normalizeCourseCode($examData['course_code'] ?? '');
+        $sessionCourseCode = $this->normalizeCourseCode($session->course_code ?? '');
+        $examCourseName = $this->normalizeArabicCourseName($examData['course_name'] ?? $examData['name'] ?? '');
+        $sessionCourseName = $this->normalizeArabicCourseName($session->course_name ?? '');
 
         // ── Primary: match by course_code ──────────────────────────────
         $codeMatch = !empty($examCourseCode) && !empty($sessionCourseCode)
@@ -521,8 +551,8 @@ class SchedulingConflictService
 
         // Course matches — now check sections
         $selectedSections = $examData['selected_sections'] ?? [];
-        $selectionMode    = $examData['selection_mode'] ?? 'selected_sections';
-        $sessionSection   = $this->normalizeSectionNumber($session->section ?? '');
+        $selectionMode = $examData['selection_mode'] ?? 'selected_sections';
+        $sessionSection = $this->normalizeSectionNumber($session->section ?? '');
 
         // If all sections are selected
         if ($selectionMode === 'all_sections') {
@@ -610,8 +640,16 @@ class SchedulingConflictService
         $value = preg_replace('/\s*\)\s*/u', ')', $value);
         // Normalize digits ١٢٣... to 123
         $value = strtr($value, [
-            '٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4',
-            '٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9',
+            '٠' => '0',
+            '١' => '1',
+            '٢' => '2',
+            '٣' => '3',
+            '٤' => '4',
+            '٥' => '5',
+            '٦' => '6',
+            '٧' => '7',
+            '٨' => '8',
+            '٩' => '9',
         ]);
         // Collapse multiple spaces
         $value = preg_replace('/\s+/u', ' ', trim($value));
@@ -622,12 +660,20 @@ class SchedulingConflictService
     {
         // Convert Arabic digits to Latin, strip spaces
         $value = strtr(trim($value), [
-            '٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4',
-            '٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9',
+            '٠' => '0',
+            '١' => '1',
+            '٢' => '2',
+            '٣' => '3',
+            '٤' => '4',
+            '٥' => '5',
+            '٦' => '6',
+            '٧' => '7',
+            '٨' => '8',
+            '٩' => '9',
         ]);
         // Remove leading zeros for numeric sections ("05" → "5")
         if (is_numeric($value)) {
-            $value = (string)(int)$value;
+            $value = (string) (int) $value;
         }
         return strtolower(trim($value));
     }
@@ -640,15 +686,16 @@ class SchedulingConflictService
 
     public function checkInstructorConflicts(array $data): array
     {
-        $conflicts  = [];
-        $lecturer   = trim($data['lecturer'] ?? '');
-        $day        = $data['day'] ?? null;
-        $examDate   = $data['exam_date'] ?? null;
-        $startMin   = $this->parseTime($data['start_time']);
-        $endMin     = $this->parseTime($data['end_time']);
-        $excludeId  = $data['exclude_exam_id'] ?? null;
+        $conflicts = [];
+        $lecturer = trim($data['lecturer'] ?? '');
+        $day = $data['day'] ?? null;
+        $examDate = $data['exam_date'] ?? null;
+        $startMin = $this->parseTime($data['start_time']);
+        $endMin = $this->parseTime($data['end_time']);
+        $excludeId = $data['exclude_exam_id'] ?? null;
 
-        if (!$lecturer || !$day) return [];
+        if (!$lecturer || !$day)
+            return [];
 
         // Check against other scheduled exams
         $query = DB::table('scheduled_exams')
@@ -666,19 +713,19 @@ class SchedulingConflictService
             }
 
             $exStart = $this->parseTime($exam->start_time);
-            $exEnd   = $this->parseTime($exam->end_time);
+            $exEnd = $this->parseTime($exam->end_time);
 
             if ($startMin < $exEnd && $endMin > $exStart) {
                 $conflicts[] = $this->makeConflict(
                     'instructor_conflict',
                     "المحاضر \"{$lecturer}\" لديه اختبار آخر في نفس الوقت: \"{$exam->course_code}\" من {$exam->start_time} إلى {$exam->end_time}",
                     [
-                        'lecturer'            => $lecturer,
-                        'date'                => $examDate ?? $day,
-                        'existing_exam_id'    => $exam->id,
-                        'existing_course'     => $exam->course_code,
+                        'lecturer' => $lecturer,
+                        'date' => $examDate ?? $day,
+                        'existing_exam_id' => $exam->id,
+                        'existing_course' => $exam->course_code,
                         'existing_start_time' => $exam->start_time,
-                        'existing_end_time'   => $exam->end_time,
+                        'existing_end_time' => $exam->end_time,
                     ]
                 );
             }
@@ -698,18 +745,18 @@ class SchedulingConflictService
 
         foreach ($sessions as $session) {
             $sesStart = $this->parseTime($session->start_time);
-            $sesEnd   = $this->parseTime($session->end_time);
+            $sesEnd = $this->parseTime($session->end_time);
 
             if ($startMin < $sesEnd && $endMin > $sesStart) {
                 $conflicts[] = $this->makeConflict(
                     'instructor_conflict',
                     "المحاضر \"{$lecturer}\" لديه محاضرة في نفس الوقت: \"{$session->course_name}\" من {$session->start_time} إلى {$session->end_time}",
                     [
-                        'lecturer'           => $lecturer,
-                        'date'               => $day,
-                        'lecture_course'     => $session->course_name,
+                        'lecturer' => $lecturer,
+                        'date' => $day,
+                        'lecture_course' => $session->course_name,
                         'lecture_start_time' => $session->start_time,
-                        'lecture_end_time'   => $session->end_time,
+                        'lecture_end_time' => $session->end_time,
                     ]
                 );
             }
@@ -724,21 +771,23 @@ class SchedulingConflictService
 
     public function checkSectionConflicts(array $data): array
     {
-        $conflicts   = [];
-        $day         = $data['day'] ?? null;
-        $examDate    = $data['exam_date'] ?? null;
-        $startMin    = $this->parseTime($data['start_time']);
-        $endMin      = $this->parseTime($data['end_time']);
-        $excludeId   = $data['exclude_exam_id'] ?? null;
+        $conflicts = [];
+        $day = $data['day'] ?? null;
+        $examDate = $data['exam_date'] ?? null;
+        $startMin = $this->parseTime($data['start_time']);
+        $endMin = $this->parseTime($data['end_time']);
+        $excludeId = $data['exclude_exam_id'] ?? null;
         $selectedSections = $data['selected_sections'] ?? [];
 
-        if (empty($selectedSections) || !$day) return [];
+        if (empty($selectedSections) || !$day)
+            return [];
 
         // Check each section to ensure it's not already scheduled
         foreach ($selectedSections as $sectionData) {
             $sectionKey = is_string($sectionData) ? $sectionData : ($sectionData['section_key'] ?? '');
-            
-            if (!$sectionKey) continue;
+
+            if (!$sectionKey)
+                continue;
 
             $query = DB::table('scheduled_exam_sections')
                 ->join('scheduled_exams', 'scheduled_exams.id', '=', 'scheduled_exam_sections.scheduled_exam_id')
@@ -757,19 +806,19 @@ class SchedulingConflictService
                 }
 
                 $exStart = $this->parseTime($exam->start_time);
-                $exEnd   = $this->parseTime($exam->end_time);
+                $exEnd = $this->parseTime($exam->end_time);
 
                 if ($startMin < $exEnd && $endMin > $exStart) {
                     $conflicts[] = $this->makeConflict(
                         'section_conflict',
                         "الشعبة {$exam->section_number} من مادة {$exam->course_code} مجدولة مسبقاً في هذا الوقت",
                         [
-                            'course_code'         => $exam->course_code,
-                            'section_key'         => $sectionKey,
-                            'date'                => $examDate ?? $day,
-                            'existing_exam_id'    => $exam->id,
+                            'course_code' => $exam->course_code,
+                            'section_key' => $sectionKey,
+                            'date' => $examDate ?? $day,
+                            'existing_exam_id' => $exam->id,
                             'existing_start_time' => $exam->start_time,
-                            'existing_end_time'   => $exam->end_time,
+                            'existing_end_time' => $exam->end_time,
                         ]
                     );
                 }
@@ -785,28 +834,30 @@ class SchedulingConflictService
 
     public function checkCapacity(array $data): array
     {
-        $conflicts    = [];
-        $rooms        = $data['rooms'] ?? [];
-        $originalCount= (int)($data['student_count'] ?? 0);
+        $conflicts = [];
+        $rooms = $data['rooms'] ?? [];
+        $originalCount = (int) ($data['student_count'] ?? 0);
         $studentCount = $originalCount;
-        $courseName   = $data['course_name'] ?? '';
-        $isFullDay    = filter_var($data['is_full_day'] ?? false, FILTER_VALIDATE_BOOLEAN);
-        $scope        = $data['booking_scope'] ?? 'selected_rooms';
+        $courseName = $data['course_name'] ?? '';
+        $isFullDay = filter_var($data['is_full_day'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $scope = $data['booking_scope'] ?? 'selected_rooms';
 
-        if ($studentCount === 0) return [];
+        if ($studentCount === 0)
+            return [];
 
         // إذا كان الامتحان مقسماً على جلسات، نعتبر أن العدد المطلوب هو النصف
         $isSplitSession = false;
         $combinedText = $courseName . ' ' . ($data['notes'] ?? '') . ' ' . json_encode($data['section_numbers'] ?? []) . ' ' . ($data['section'] ?? '');
         if (preg_match('/(جلسة|فترة)/u', $combinedText)) {
-            $studentCount = (int)ceil($studentCount / 2);
+            $studentCount = (int) ceil($studentCount / 2);
             $isSplitSession = true;
         }
-        
+
         if ($isFullDay && $scope === 'all_university') {
             $totalCapacity = DB::table('rooms')->sum('capacity');
         } else {
-            if (empty($rooms)) return [];
+            if (empty($rooms))
+                return [];
             $totalCapacity = DB::table('rooms')
                 ->whereIn('room_name', $rooms)
                 ->sum('capacity');
@@ -821,11 +872,11 @@ class SchedulingConflictService
                 'capacity_conflict',
                 $message,
                 [
-                    'rooms'          => $rooms,
+                    'rooms' => $rooms,
                     'total_capacity' => $totalCapacity,
-                    'student_count'  => $studentCount,
-                    'shortage'       => $studentCount - $totalCapacity,
-                    'severity'       => 'warning', // Allow UI to bypass
+                    'student_count' => $studentCount,
+                    'shortage' => $studentCount - $totalCapacity,
+                    'severity' => 'warning', // Allow UI to bypass
                 ]
             );
         }
@@ -841,7 +892,7 @@ class SchedulingConflictService
     private function makeConflict(string $type, string $message, array $details = []): array
     {
         return array_merge([
-            'type'    => $type,
+            'type' => $type,
             'message' => $message,
         ], $details);
     }
@@ -849,10 +900,11 @@ class SchedulingConflictService
     /** "HH:MM" → total minutes from midnight */
     public function parseTime(string $time): int
     {
-        if (!$time) return 0;
+        if (!$time)
+            return 0;
         // Handle both "HH:MM" and "HH:MM:SS"
         $parts = explode(':', $time);
-        return ((int)($parts[0] ?? 0)) * 60 + ((int)($parts[1] ?? 0));
+        return ((int) ($parts[0] ?? 0)) * 60 + ((int) ($parts[1] ?? 0));
     }
 
     /** Total minutes from midnight → "HH:MM" */

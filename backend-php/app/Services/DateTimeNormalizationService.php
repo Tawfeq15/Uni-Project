@@ -11,21 +11,27 @@ class DateTimeNormalizationService
      * Map English day names to Arabic and vice versa
      */
     protected array $dayMap = [
-        'sunday'    => 'الأحد',
-        'monday'    => 'الاثنين',
-        'tuesday'   => 'الثلاثاء',
+        'sunday' => 'الأحد',
+        'monday' => 'الاثنين',
+        'tuesday' => 'الثلاثاء',
         'wednesday' => 'الأربعاء',
-        'thursday'  => 'الخميس',
-        'friday'    => 'الجمعة',
-        'saturday'  => 'السبت',
-        
-        'الأحد'     => 'sunday',
-        'الاثنين'   => 'monday',
-        'الثلاثاء'  => 'tuesday',
-        'الأربعاء'  => 'wednesday',
-        'الخميس'   => 'thursday',
-        'الجمعة'    => 'friday',
-        'السبت'     => 'saturday',
+        'thursday' => 'الخميس',
+        'friday' => 'الجمعة',
+        'saturday' => 'السبت',
+
+        // WITH hamza (أ)
+        'الأحد' => 'sunday',
+        'الاثنين' => 'monday',
+        'الثلاثاء' => 'tuesday',
+        'الأربعاء' => 'wednesday',
+        'الخميس' => 'thursday',
+        'الجمعة' => 'friday',
+        'السبت' => 'saturday',
+
+        // WITHOUT hamza (ا) — common entry style
+        'الاحد' => 'sunday',
+        'الاربعاء' => 'wednesday',
+        'الثلاثاة' => 'tuesday', // common typo
     ];
 
     /**
@@ -33,11 +39,12 @@ class DateTimeNormalizationService
      */
     public function normalizeDate($value): ?string
     {
-        if (empty($value)) return null;
+        if (empty($value))
+            return null;
 
         // 1. Convert Excel Serial Dates
         if (is_numeric($value)) {
-            return $this->parseExcelDate((int)$value);
+            return $this->parseExcelDate((int) $value);
         }
 
         // Convert standard string representation
@@ -64,7 +71,7 @@ class DateTimeNormalizationService
 
             // Fallback to Carbon parse
             return Carbon::parse($value)->format('Y-m-d');
-            
+
         } catch (\Exception $e) {
             return null; // Could not normalize
         }
@@ -75,15 +82,16 @@ class DateTimeNormalizationService
      */
     public function normalizeTime($value): ?string
     {
-        if (empty($value)) return null;
+        if (empty($value))
+            return null;
 
         $value = trim($value);
         $value = $this->parseArabicNumerals($value);
 
         // Matches Excel decimal time e.g., 0.5 for 12:00, 0.729 for 17:30
         if (is_numeric($value) && $value < 1 && $value >= 0) {
-            $totalMinutes = round((float)$value * 24 * 60);
-            $hours   = intdiv($totalMinutes, 60) % 24;
+            $totalMinutes = round((float) $value * 24 * 60);
+            $hours = intdiv($totalMinutes, 60) % 24;
             $minutes = $totalMinutes % 60;
             // Excel decimals 0.0417–0.2916 = 1:00–7:00 AM in raw terms,
             // but for university scheduling these should be PM (13:00–19:00)
@@ -99,14 +107,14 @@ class DateTimeNormalizationService
 
         try {
             $parsed = Carbon::parse($value);
-            $hour = (int)$parsed->format('H');
-            
+            $hour = (int) $parsed->format('H');
+
             // If hour is between 1 and 7 (inclusive), and it's not explicitly marked AM/PM,
             // assume it's PM (13:00 - 19:00) for university exams.
             if ($hour >= 1 && $hour <= 7 && !preg_match('/(am|pm|صباحاً|مساءً)/ui', $value)) {
                 $parsed->addHours(12);
             }
-            
+
             return $parsed->format('H:i:s');
         } catch (\Exception $e) {
             return null;
@@ -119,17 +127,18 @@ class DateTimeNormalizationService
      */
     public function normalizeTimeRange($value): array
     {
-        if (empty($value)) return ['start_time' => null, 'end_time' => null];
-        
+        if (empty($value))
+            return ['start_time' => null, 'end_time' => null];
+
         $value = trim($value);
         $value = $this->parseArabicNumerals($value);
-        
+
         // Sometimes ranges are separated by -, /, ,, "to", or "إلى"
         $parts = preg_split('/(\-|\/|,|،|\bto\b|\sإلى\s)/ui', $value);
         if (count($parts) >= 2) {
             $t1 = $this->normalizeTime($parts[0]);
             $t2 = $this->normalizeTime(array_pop($parts)); // use last part as t2 in case of empty middle splits
-            
+
             if ($t1 && $t2) {
                 // If t1 > t2, it was probably RTL inverted
                 if (strtotime($t1) > strtotime($t2)) {
@@ -138,7 +147,7 @@ class DateTimeNormalizationService
                 return ['start_time' => $t1, 'end_time' => $t2];
             }
         }
-        
+
         // If could not split, just return it as start time
         return ['start_time' => $this->normalizeTime($value), 'end_time' => null];
     }
@@ -170,7 +179,8 @@ class DateTimeNormalizationService
      */
     public function calculateDayFromDate(?string $date): ?string
     {
-        if (!$date) return null;
+        if (!$date)
+            return null;
         try {
             return strtolower(Carbon::parse($date)->englishDayOfWeek);
         } catch (\Exception $e) {
@@ -192,8 +202,9 @@ class DateTimeNormalizationService
      */
     public function validateExamDate(string $date, bool $allowPast = false): bool
     {
-        if ($allowPast) return true;
-        
+        if ($allowPast)
+            return true;
+
         try {
             $parsed = Carbon::parse($date)->startOfDay();
             $today = Carbon::now()->startOfDay();
@@ -219,6 +230,20 @@ class DateTimeNormalizationService
         if ($frontendDay) {
             $englishFrontendDay = $this->dayMap[$frontendDay] ?? strtolower($frontendDay);
             if ($englishFrontendDay !== $calculatedDay) {
+                // Try swapping month and day — common bug when Excel locale is M/D but user enters D/M
+                // e.g. user types 9/4/2026 (April 9) but Excel stores September 4
+                try {
+                    $carbon = \Carbon\Carbon::parse($date);
+                    $swappedDate = \Carbon\Carbon::create($carbon->year, $carbon->day, $carbon->month)->format('Y-m-d');
+                    $swappedDay = $this->calculateDayFromDate($swappedDate);
+                    if ($swappedDay === $englishFrontendDay) {
+                        // Swapped date matches the stated day name — use it
+                        $warning = "تم تصحيح التاريخ تلقائيًا (تبديل الشهر واليوم): كان {$date}، أصبح {$swappedDate}.";
+                        return ['day' => $swappedDay, 'warning' => $warning, 'corrected_date' => $swappedDate];
+                    }
+                } catch (\Exception $e) { /* ignore */
+                }
+
                 $warning = "اليوم الموجود في الملف لا يطابق التاريخ، وتم اعتماد اليوم حسب التاريخ.";
             }
         }

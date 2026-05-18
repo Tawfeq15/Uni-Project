@@ -6,8 +6,9 @@ const NAV_ITEMS = [
     { to: '/', icon: '📊', label: 'لوحة التحكم' },
   ]},
   { group: 'البيانات', items: [
-    { to: '/uploads', icon: '📤', label: 'رفع الملفات' },
-    { to: '/exam-imports', icon: '📥', label: 'استيراد الجداول' },
+    { to: '/uploads',                    icon: '📤', label: 'رفع الملفات' },
+    { to: '/exam-imports',               icon: '📥', label: 'استيراد الجداول' },
+    { to: '/final-computerized-import',  icon: '🖥️', label: 'استيراد النهائي المحوسب' },
   ]},
   { group: 'الجدولة', items: [
     { to: '/availability', icon: '🏫', label: 'القاعات المتاحة' },

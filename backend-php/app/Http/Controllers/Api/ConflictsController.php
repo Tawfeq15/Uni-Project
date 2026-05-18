@@ -268,8 +268,18 @@ class ConflictsController extends Controller
         }
 
         // ── 4. Unscheduled exam requests ────────────────────────────────
-        $unscheduled = DB::table('exam_requests')->where('status', 'pending')->get();
+        // Only flag requests that are truly pending AND have NOT been linked to a scheduled exam
+        $unscheduled = DB::table('exam_requests')
+            ->whereIn('status', ['pending', 'draft'])
+            ->get();
         foreach ($unscheduled as $req) {
+            // Skip if this request has an associated scheduled exam that is active
+            $hasScheduled = DB::table('scheduled_exams')
+                ->where('exam_request_id', $req->id)
+                ->where('status', '!=', 'cancelled')
+                ->exists();
+            if ($hasScheduled) continue;
+
             $conflicts[] = [
                 'conflict_type'  => 'unscheduled',
                 'reference_type' => 'exam_request',
@@ -281,7 +291,7 @@ class ConflictsController extends Controller
                 'exam_date'      => null,
                 'start_time'     => null,
                 'end_time'       => null,
-                'message'        => "طلب الاختبار \"{$req->course_code} - {$req->section}\" لم يتم جدولته بعد",
+                'message'        => "طلب الاختبار \"{$req->course_code}\" ({$req->course_name}) لم يتم جدولته بعد",
                 'severity'       => 'warning',
                 'created_at'     => now(),
             ];

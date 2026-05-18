@@ -436,7 +436,7 @@ export default function Dashboard() {
           icon="⚠️"
           label="تعارضات"
           value={stats.conflicts || 0}
-          subtitle={stats.conflicts > 0 ? 'تحتاج مراجعة' : 'لا تعارضات'}
+          subtitle={stats.conflicts > 0 ? 'قاعات + استيراد — تحتاج مراجعة' : 'لا تعارضات حقيقية'}
           color={stats.conflicts > 0 ? 'var(--danger)' : 'var(--success)'}
           onClick={() => navigate('/conflicts')}
           pulse={stats.conflicts > 0}
@@ -638,7 +638,10 @@ export default function Dashboard() {
                                 padding: '6px 10px', background: isNext ? 'rgba(245, 158, 11, 0.05)' : 'rgba(99,102,241,0.05)',
                                 border: `1px solid ${isNext ? 'rgba(245, 158, 11, 0.15)' : 'rgba(99,102,241,0.15)'}`, borderRadius: 6, fontSize: '0.8rem',
                               }}>
-                                <span style={{ flex: 1.5, fontWeight: 600, color: isNext ? 'var(--warning)' : 'var(--primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <span style={{ minWidth: 90, flexShrink: 0, fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.75rem' }} dir="ltr">
+                                  {to12h(e.start_time)} - {to12h(e.end_time)}
+                                </span>
+                                <span style={{ flex: 1.5, fontWeight: 600, color: isNext ? 'var(--warning)' : 'var(--primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: 10 }}>
                                   {e.course_name || e.course_code}
                                 </span>
                                 <span style={{ flex: 1, textAlign: 'right', fontSize: '0.75rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

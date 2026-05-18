@@ -233,3 +233,31 @@ export function formatConflictErrors(err) {
   if (warnLines.length) result += `\n\nتحذيرات:\n${warnLines.join('\n')}`;
   return result;
 }
+
+// ── Final Computerized Import (استيراد النهائي المحوسب) ──────────────────────
+// ISOLATED — does not affect existing examImportsAPI
+export const finalComputerizedImportsAPI = {
+  preview: (formData) =>
+    fetch(`${API_BASE}/final-computerized-imports/preview`, { method: 'POST', body: formData })
+      .then(r => r.json()),
+
+  assignLabs: (id) =>
+    request(`/final-computerized-imports/${id}/assign-labs`, { method: 'POST', body: JSON.stringify({}) }),
+
+  confirm: (id) =>
+    request(`/final-computerized-imports/${id}/confirm`, {
+      method: 'POST',
+      body: JSON.stringify(withOperator({})),
+    }),
+
+  list: () => request('/final-computerized-imports'),
+
+  show: (id) => request(`/final-computerized-imports/${id}`),
+
+  rows: (id) => request(`/final-computerized-imports/${id}/rows`),
+
+  exportExcel: (id) =>
+    window.open(`${API_BASE}/final-computerized-imports/${id}/export-excel`, '_blank'),
+
+  availableLabs: () => request('/final-computerized-imports/available-labs'),
+};

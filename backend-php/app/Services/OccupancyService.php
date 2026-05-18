@@ -42,7 +42,7 @@ class OccupancyService
      * @param string|null $examDate  If provided, also include scheduled_exams for this specific date (Y-m-d).
      *                               Without a date, only the recurring weekly timetable is used.
      */
-    public function getOccupiedIntervals(string $room, string $day, ?string $examDate = null): array
+    public function getOccupiedIntervals(string $room, string $day, ?string $examDate = null, ?int $existingExamId = null): array
     {
         $intervals = [];
 
@@ -74,13 +74,14 @@ class OccupancyService
         // We only factor them in when the caller supplies an examDate.
         if ($examDate) {
             $exams = DB::select("
-                SELECT se.start_time, se.end_time, se.rooms_json
+                SELECT se.id, se.start_time, se.end_time, se.rooms_json
                 FROM scheduled_exams se
                 WHERE se.exam_date = ?
                   AND se.status != 'cancelled'
                   AND se.start_time IS NOT NULL
                   AND se.end_time IS NOT NULL
-            ", [$examDate]);
+                  " . ($existingExamId ? "AND se.id != ?" : "") . "
+            ", $existingExamId ? [$examDate, $existingExamId] : [$examDate]);
 
             foreach ($exams as $exam) {
                 $rooms = [];
@@ -133,9 +134,9 @@ class OccupancyService
         return $free;
     }
 
-    public function getRoomFreeSlots(string $room, string $day, ?string $examDate = null): array
+    public function getRoomFreeSlots(string $room, string $day, ?string $examDate = null, ?int $existingExamId = null): array
     {
-        $occupied = $this->getOccupiedIntervals($room, $day, $examDate);
+        $occupied = $this->getOccupiedIntervals($room, $day, $examDate, $existingExamId);
         $free     = $this->computeFreeIntervals($occupied);
 
         return [
@@ -205,16 +206,16 @@ class OccupancyService
         return $result;
     }
 
-    public function isRoomFree(string $room, string $day, int $startMin, int $endMin, ?string $examDate = null): bool
+    public function isRoomFree(string $room, string $day, int $startMin, int $endMin, ?string $examDate = null, ?int $existingExamId = null): bool
     {
-        $occupied = $this->getOccupiedIntervals($room, $day, $examDate);
+        $occupied = $this->getOccupiedIntervals($room, $day, $examDate, $existingExamId);
         foreach ($occupied as $occ) {
             if ($startMin < $occ['end'] && $endMin > $occ['start']) return false;
         }
         return true;
     }
 
-    public function isLecturerFree(string $lecturer, string $day, int $startMin, int $endMin): bool
+    public function isLecturerFree(string $lecturer, string $day, int $startMin, int $endMin, ?int $existingExamId = null): bool
     {
         if (!$lecturer) return true;
 
@@ -242,7 +243,8 @@ class OccupancyService
             WHERE LOWER(lecturer) = LOWER(?)
               AND LOWER(day) = LOWER(?)
               AND status != 'cancelled'
-        ", [$lecturer, $day]);
+              " . ($existingExamId ? "AND id != ?" : "") . "
+        ", $existingExamId ? [$lecturer, $day, $existingExamId] : [$lecturer, $day]);
 
         foreach ($exams as $e) {
             $start = $this->toMinutes($e->start_time);

@@ -379,19 +379,19 @@ export default function FinalSchedule() {
           </div>
           
           <div style={{ overflowX: 'auto' }}>
-            <table className="table table-hover" style={{ borderCollapse: 'collapse', border: '1px solid var(--border)', fontSize: '0.85rem', width: '100%', minWidth: '1000px' }}>
+            <table className="table table-hover" style={{ borderCollapse: 'collapse', border: '1px solid var(--border)', fontSize: '0.85rem', width: '100%', minWidth: '1700px' }}>
               <thead style={{ background: 'rgba(255,255,255,0.05)', borderBottom: '2px solid var(--border)' }}>
                 <tr>
-                  <th style={{ width: 120, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'center' }}>اليوم والتاريخ</th>
-                  <th style={{ width: 130, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'center' }}>الوقت</th>
-                  <th style={{ width: 100, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'center' }}>رقم المادة</th>
-                  <th style={{ width: 45, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'center' }}>ش</th>
-                  <th style={{ border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'right', minWidth: 150 }}>اسم المادة</th>
-                  <th style={{ border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'right', width: 160 }}>اسم المحاضر</th>
-                  <th style={{ width: 180, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'center' }}>القاعات</th>
-                  <th style={{ width: 130, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'center' }}>السعة / الطلبة</th>
-                  <th style={{ width: 100, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'center' }}>الحالة</th>
-                  <th className="no-print" style={{ width: 110, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'center' }}>إجراءات</th>
+                  <th style={{ width: 180, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'center' }}>اليوم والتاريخ</th>
+                  <th style={{ width: 160, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'center' }}>الوقت</th>
+                  <th style={{ width: 140, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'center' }}>رقم المادة</th>
+                  <th style={{ width: 100, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'center' }}>ش</th>
+                  <th style={{ width: 220, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'right' }}>اسم المادة</th>
+                  <th style={{ width: 280, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'right' }}>اسم المحاضر</th>
+                  <th style={{ width: 280, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'center' }}>القاعات</th>
+                  <th style={{ width: 150, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'center' }}>السعة / الطلبة</th>
+                  <th style={{ width: 130, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'center' }}>الحالة</th>
+                  <th className="no-print" style={{ width: 130, border: '1px solid var(--border)', padding: '10px 8px', textAlign: 'center' }}>إجراءات</th>
                 </tr>
               </thead>
               <tbody>

@@ -307,6 +307,11 @@ class ExamsController extends Controller
             'roomType'     => $data['roomType'] ?? 'room',
             'timeFrom'     => $data['timeFrom'] ?? null,
             'timeTo'       => $data['timeTo'] ?? null,
+            'targetTimeFrom'=> $data['targetTimeFrom'] ?? null,
+            'targetTimeTo' => $data['targetTimeTo'] ?? null,
+            'targetDate'   => $data['targetDate'] ?? null,
+            'examDate'     => $data['examDate'] ?? null, // factor in scheduled exams on this date
+            'existingExamId'=> $data['existingExamId'] ?? null,
         ]);
         return response()->json($result);
     }

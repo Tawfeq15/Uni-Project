@@ -12,6 +12,7 @@ import FinalSchedule from './pages/FinalSchedule';
 import Rooms from './pages/Rooms';
 import CalendarView from './pages/CalendarView';
 import ExamImports from './pages/ExamImports';
+import FinalComputerizedImport from './pages/FinalComputerizedImport';
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
               <Route path="/conflicts" element={<Conflicts />} />
               <Route path="/schedule" element={<FinalSchedule />} />
               <Route path="/exam-imports" element={<ExamImports />} />
+              <Route path="/final-computerized-import" element={<FinalComputerizedImport />} />
               <Route path="/calendar" element={<CalendarView />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

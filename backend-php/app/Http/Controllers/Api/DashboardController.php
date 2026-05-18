@@ -19,8 +19,27 @@ class DashboardController extends Controller
         $totalLabs      = DB::table('rooms')->where('is_active', 1)->where('room_type', 'lab')->count();
         $examRequests   = DB::table('exam_requests')->count();
         $scheduledExams = DB::table('scheduled_exams')->where('status', 'scheduled')->count();
-        $unscheduled    = DB::table('exam_requests')->where('status', 'pending')->count();
-        $conflicts      = DB::table('conflicts')->where('severity', 'error')->count();
+
+        // Count only truly unscheduled requests (not already linked to a scheduled exam)
+        $unscheduled = DB::table('exam_requests')
+            ->whereIn('status', ['pending', 'draft'])
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('scheduled_exams')
+                    ->whereColumn('scheduled_exams.exam_request_id', 'exam_requests.id')
+                    ->where('scheduled_exams.status', '!=', 'cancelled');
+            })
+            ->count();
+
+        // Conflicts = hard system errors (room/lecturer) + open import conflicts
+        $sysErrors        = DB::table('conflicts')
+            ->where('severity', 'error')
+            ->where('conflict_type', 'not like', 'stale_%')
+            ->count();
+        $openImportGroups = DB::table('exam_conflict_groups')
+            ->where('status', 'open')
+            ->count();
+        $conflicts = $sysErrors + $openImportGroups;
 
         $byFaculty = DB::table('parsed_sessions as ps')
             ->join('uploaded_files as uf', 'ps.uploaded_file_id', '=', 'uf.id')

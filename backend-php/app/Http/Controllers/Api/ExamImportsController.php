@@ -14,9 +14,10 @@ class ExamImportsController extends Controller
         protected ExamScheduleImportService $importService
     ) {}
 
-    // POST /api/exams/import/preview
     public function preview(Request $request)
     {
+        set_time_limit(0); // Prevent timeout on large files
+
         $validator = Validator::make($request->all(), [
             'file' => 'required|file|mimes:xlsx,xls,csv',
             'faculty' => 'required|string',
@@ -39,6 +40,8 @@ class ExamImportsController extends Controller
     // POST /api/exams/import/confirm
     public function confirm(Request $request)
     {
+        set_time_limit(0); // Prevent timeout on large batches
+
         $importId = $request->input('import_id');
         $mode = $request->input('mode', 'import_new'); // preview_only, import_new, replace_existing
         $operatorName = $request->input('operator_name', 'Exam Coordinator');

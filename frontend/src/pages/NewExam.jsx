@@ -114,6 +114,7 @@ export default function NewExam() {
   const [dateError, setDateError] = useState('');
   const [courses, setCourses] = useState([]);
   const [conflictDetails, setConflictDetails] = useState([]);
+  const [targetTimeMissing, setTargetTimeMissing] = useState(false);
   
   const location = useLocation();
   const editExam = location.state?.editExam;
@@ -166,11 +167,11 @@ export default function NewExam() {
   }, [selectedSections, courseSections]);
 
   useEffect(() => {
-    if (form.preferred_day) {
+    if (form.preferred_day || form.time_allocation_mode === 'auto') {
       fetchSuggestions();
       fetchFreeSlots();
     }
-  }, [form.faculty, form.preferred_day, form.duration_minutes, form.student_count]);
+  }, [form.faculty, form.preferred_day, form.duration_minutes, form.student_count, form.preferred_time_from, form.preferred_time_to, form.preferred_date]);
 
   async function loadRequests() {
     try {
@@ -245,7 +246,7 @@ export default function NewExam() {
         day: form.preferred_day,
         duration: form.duration_minutes ? parseInt(form.duration_minutes) : 60,
         studentCount: form.student_count ? parseInt(form.student_count) : 0,
-        roomType: 'lab',
+        existingExamId: editExam?.id || null,
       };
       if (form.faculty) params.faculty = form.faculty;
       if (form.time_allocation_mode === 'manual') {
@@ -272,12 +273,31 @@ export default function NewExam() {
         duration: form.duration_minutes ? parseInt(form.duration_minutes) : null,
         studentCount: form.student_count ? parseInt(form.student_count) : 0,
         lecturer: form.lecturer || null,
-        roomType: 'lab',
-        timeFrom: form.time_allocation_mode === 'manual' ? (form.preferred_time_from || null) : null,
-        timeTo: form.time_allocation_mode === 'manual' ? (form.preferred_time_to || null) : null,
+        // Time window: available in BOTH manual and auto modes
+        timeFrom: form.preferred_time_from || null,
+        // Target (Original) Time: boost rank but don't strictly filter
+        targetTimeFrom: editExam?.start_time?.substring(0, 5) || null,
+        targetTimeTo: editExam?.end_time?.substring(0, 5) || null,
+        targetDate: editExam?.exam_date || null,
+        existingExamId: editExam?.id || null,
       });
-      setSuggestions(result.suggestions || []);
+      
+      const suggs = result.suggestions || [];
+      setSuggestions(suggs);
       setRejected(result.rejected || []);
+
+      // Check if the original target time was found at the top
+      if (editExam && editExam.exam_date && editExam.start_time) {
+        const targetD = editExam.exam_date;
+        const targetT = editExam.start_time.substring(0, 5);
+        // Is the first suggestion matching the original time?
+        if (suggs.length > 0 && !(suggs[0].date === targetD && suggs[0].start_time.substring(0,5) === targetT)) {
+           setTargetTimeMissing(true);
+        } else {
+           setTargetTimeMissing(false);
+        }
+      }
+
     } catch (e) {
       toast(e.message, 'error');
     } finally {
@@ -322,7 +342,7 @@ export default function NewExam() {
       await examsAPI.schedule({
         faculty: form.faculty,
         day: selectedSlot.day,
-        exam_date: form.preferred_date || null,
+        exam_date: form.preferred_date || selectedSlot.exam_date || null,
         start_time: selectedSlot.start_time,
         end_time: selectedSlot.end_time,
         duration_minutes: selectedSlot.duration_minutes,
@@ -375,7 +395,7 @@ export default function NewExam() {
       await examsAPI.schedule({
         faculty: form.faculty,
         day: selectedSlot.day,
-        exam_date: form.preferred_date || null,
+        exam_date: form.preferred_date || selectedSlot.exam_date || null,
         start_time: selectedSlot.start_time,
         end_time: selectedSlot.end_time,
         duration_minutes: selectedSlot.duration_minutes,
@@ -646,6 +666,75 @@ export default function NewExam() {
               </p>
             </div>
 
+            {/* AUTO mode: optional date + time window filter */}
+            {form.time_allocation_mode === 'auto' && (
+              <div className="animate-fade-in" style={{
+                padding: '14px 16px',
+                background: 'rgba(99,102,241,0.04)',
+                borderRadius: 10,
+                border: '1px dashed var(--primary)',
+                marginBottom: 16,
+              }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 700, marginBottom: 10 }}>
+                  🔧 فلترة اختيارية — يمكنك تحديد التاريخ أو النطاق الزمني لتضييق البحث:
+                </div>
+                <div className="form-row" style={{ marginBottom: 0 }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '0.78rem' }}>📅 تاريخ الاختبار (يُستخدم لاستثناء القاعات المحجوزة)</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={form.preferred_date}
+                      onChange={e => setForm(prev => ({ ...prev, preferred_date: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="form-row" style={{ marginTop: 10, marginBottom: 0 }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '0.78rem' }}>⏰ من الساعة (اختياري)</label>
+                    <select
+                      className="form-control"
+                      value={form.preferred_time_from}
+                      onChange={e => setForm(prev => ({ ...prev, preferred_time_from: e.target.value }))}
+                    >
+                      <option value="">-- غير محدد --</option>
+                      {['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30',
+                        '12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30'].map(t => <option key={t} value={t}>{formatTime12(t)}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '0.78rem' }}>⏰ حتى الساعة (اختياري)</label>
+                    <select
+                      className="form-control"
+                      value={form.preferred_time_to}
+                      onChange={e => setForm(prev => ({ ...prev, preferred_time_to: e.target.value }))}
+                    >
+                      <option value="">-- غير محدد --</option>
+                      {['08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00',
+                        '12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00'].map(t => <option key={t} value={t}>{formatTime12(t)}</option>)}
+                    </select>
+                  </div>
+                </div>
+                {(form.preferred_date || form.preferred_time_from || form.preferred_time_to) && (
+                  <div style={{ marginTop: 8, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    🔍 البحث في:{' '}
+                    {form.preferred_date && <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{form.preferred_date}</span>}
+                    {form.preferred_time_from && form.preferred_time_to && (
+                      <span dir="ltr" style={{ color: 'var(--accent)', fontWeight: 600, marginRight: 6 }}>
+                        {' '}{formatTime12(form.preferred_time_from)} - {formatTime12(form.preferred_time_to)}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-secondary"
+                      style={{ marginRight: 8, padding: '2px 8px', fontSize: '0.72rem' }}
+                      onClick={() => setForm(prev => ({ ...prev, preferred_date: '', preferred_time_from: '', preferred_time_to: '' }))}
+                    >✕ مسح</button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">مدة الاختبار (دقيقة) *</label>
@@ -676,8 +765,8 @@ export default function NewExam() {
             </>
             )}
 
-            {/* Manual Mode Settings Block */}
-            {(!form.is_full_day && form.time_allocation_mode === 'manual') && (
+            {/* Optional Time Filters for both Manual and Auto Mode */}
+            {(!form.is_full_day) && (
               <div className="animate-fade-in" style={{ 
                 padding: '20px', 
                 background: 'rgba(255, 255, 255, 0.02)', 
@@ -686,7 +775,7 @@ export default function NewExam() {
                 marginBottom: '20px' 
               }}>
                 <h4 style={{ marginBottom: 16, fontSize: '0.9rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  ⚙️ إعدادات الوقت اليدوية
+                  ⚙️ إعدادات التخصيص (اختياري)
                 </h4>
                 
                 <div className="form-row">
@@ -1045,12 +1134,17 @@ export default function NewExam() {
                           <span className="badge badge-gray">#{i + 1}</span>
                           <span className="badge badge-info">{s.duration_minutes}د</span>
                           <span className="badge badge-warning">🔬 مختبر</span>
+                          {s.is_combo && (
+                            <span className="badge" style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.3)' }}>
+                              🏫 {s.rooms?.length} قاعات
+                            </span>
+                          )}
                         </div>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.rooms?.length} مختبر</span>
                       </div>
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: '0.82rem' }}>
-                        <Detail label="اليوم" value={DAY_AR[s.day] || s.day} />
+                        <Detail label="اليوم/التاريخ" value={`${DAY_AR[s.day] || s.day} ${s.exam_date ? `(${s.exam_date})` : ''}`} />
                         <Detail label="الوقت المتاح" value={<span dir="ltr" style={{ display: 'inline-block' }}>{`${formatTime12(s.start_time)} - ${formatTime12(s.end_time)}`}</span>} />
                         <Detail label="المختبر(ات)" value={s.rooms?.join(' / ')} />
                         <Detail label="السعة الكلية" value={`${s.total_capacity} طالب`} />
