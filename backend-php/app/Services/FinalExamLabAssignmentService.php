@@ -238,12 +238,17 @@ class FinalExamLabAssignmentService
             ];
         }
 
-        // Sort: by priority_order ASC, then capacity DESC (fill biggest first within same priority)
+        // Sort: priority_order ASC → capacity DESC → lab_name natural ASC (tiebreaker)
+        // The natural-name tiebreaker guarantees sequential assignment:
+        // 2101 → 2102 → 2103 → ... and never skips to 2104 when 2103 is free.
         usort($available, function ($a, $b) {
             if ($a['priority_order'] !== $b['priority_order']) {
                 return $a['priority_order'] <=> $b['priority_order'];
             }
-            return $b['capacity'] <=> $a['capacity'];
+            if ($a['capacity'] !== $b['capacity']) {
+                return $b['capacity'] <=> $a['capacity'];   // bigger capacity first
+            }
+            return strnatcmp($a['lab_name'], $b['lab_name']); // 2101 < 2102 < 2103 ...
         });
 
         return $available;

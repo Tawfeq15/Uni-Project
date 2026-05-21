@@ -1,424 +1,295 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { finalComputerizedImportsAPI } from '../api';
 import { useToast } from '../components/Toast';
 
-const STATUS_BADGE = {
-  assigned:     { cls: 'badge-success', label: 'تم التوزيع' },
-  needs_review: { cls: 'badge-warning', label: 'يحتاج مراجعة' },
-  conflict:     { cls: 'badge-danger',  label: 'تعارض' },
-  invalid:      { cls: 'badge-danger',  label: 'بيانات ناقصة' },
-  valid:        { cls: 'badge-info',    label: 'صالح' },
-  imported:     { cls: 'badge-primary', label: 'مستورد' },
-  pending:      { cls: 'badge-gray',    label: 'معلق' },
-};
-
-const PRIORITY_BADGE = {
-  library: { cls: 'badge-success', label: 'مكتبة' },
-  it:      { cls: 'badge-info',    label: 'IT' },
-  other:   { cls: 'badge-gray',    label: 'كليات أخرى' },
-};
+function parseJson(val,fallback){
+  if(!val)return fallback;if(typeof val==='object')return val;
+  try{return JSON.parse(val);}catch{return fallback;}
+}
 
 export default function FinalComputerizedImport() {
-  const { addToast } = useToast();
-  const fileRef = useRef();
-
-  // Form
-  const [form, setForm]   = useState({
-    academic_year: '2025-2026',
-    semester: '2',
-    exam_period: 'final',
-    faculty: '',
+  const [imports, setImports] = useState([]);
+  const [loading, setLoading] = useState('');
+  const [file, setFile] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [importId, setImportId] = useState(null);
+  const [rows, setRows] = useState([]);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [form, setForm] = useState({
+    academic_year: '2025-2026', semester: 'First', exam_period: 'Final',
+    library_threshold: 400
   });
-  const [file, setFile]   = useState(null);
 
-  // State
-  const [importId,  setImportId]  = useState(null);
-  const [rows,      setRows]      = useState([]);
-  const [summary,   setSummary]   = useState(null);
-  const [loading,   setLoading]   = useState('');
-  const [dragOver,  setDragOver]  = useState(false);
+  const fileRef = useRef();
+  const toast = useToast();
 
-  // Helpers
-  const setField = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  useEffect(() => { loadImports(); }, []);
 
-  const calcSummary = (rowList) => {
-    const total     = rowList.length;
-    const students  = rowList.reduce((s, r) => s + (r.student_count || 0), 0);
-    const assigned  = rowList.filter(r => r.status === 'assigned' || r.status === 'imported').length;
-    const review    = rowList.filter(r => r.status === 'needs_review').length;
-    const conflicts = rowList.filter(r => r.status === 'conflict').length;
-    const capIssue  = rowList.filter(r => {
-      const w = typeof r.warnings === 'string' ? JSON.parse(r.warnings || '[]') : (r.warnings || []);
-      return w.some(x => x && x.includes('غير كافية'));
-    }).length;
-    setSummary({ total, students, assigned, review, conflicts, capIssue });
+  const loadImports = async () => {
+    setLoading('imports');
+    const res = await finalComputerizedImportsAPI.list();
+    setLoading('');
+    if (res.success) setImports(res.imports || []);
+    else toast(res.message || 'فشل تحميل السجل', 'error');
   };
 
   const loadRows = async (id) => {
+    setLoading('rows');
     const res = await finalComputerizedImportsAPI.rows(id);
-    if (res.success) {
-      const list = res.data || [];
-      setRows(list);
-      calcSummary(list);
-    }
+    setLoading('');
+    if (res.success) setRows(res.data || []);
+    else toast(res.message || 'فشل تحميل التفاصيل', 'error');
   };
 
-  // ── STEP 1: Preview ──────────────────────────────────────────────────────
   const handlePreview = async () => {
-    if (!file) { addToast('اختر ملف Excel أولاً', 'warning'); return; }
-
+    if (!file) { toast('اختر ملف Excel أولاً', 'warning'); return; }
     setLoading('preview');
-    const fd = new FormData();
-    fd.append('file', file);
+    const fd = new FormData(); fd.append('file', file);
     Object.entries(form).forEach(([k, v]) => v && fd.append(k, v));
-
     const res = await finalComputerizedImportsAPI.preview(fd);
     setLoading('');
-
     if (res.success) {
       setImportId(res.import_id);
       await loadRows(res.import_id);
-      addToast(`تم قراءة ${res.total_rows} سطر بنجاح`, 'success');
-    } else {
-      addToast(res.message || 'فشل في قراءة الملف', 'error');
-    }
+      toast('تم قراءة ' + res.total_rows + ' سطر بنجاح', 'success');
+      setCurrentStep(2);
+    } else toast(res.message || 'فشل في قراءة الملف', 'error');
   };
 
-  // ── STEP 2: Assign Labs ──────────────────────────────────────────────────
   const handleAssign = async () => {
-    if (!importId) { addToast('قم بقراءة الملف أولاً', 'warning'); return; }
+    if (!importId) { toast('قم بقراءة الملف أولاً', 'warning'); return; }
     setLoading('assign');
     const res = await finalComputerizedImportsAPI.assignLabs(importId);
     setLoading('');
-
     if (res.success) {
       await loadRows(importId);
-      addToast(`تم توزيع المختبرات: ${res.assigned} ✓  يحتاج مراجعة: ${res.needs_review}`, 'success');
-    } else {
-      addToast(res.message || 'فشل في التوزيع', 'error');
-    }
+      toast('تم توزيع المختبرات: ' + res.assigned + ' ✓  يحتاج مراجعة: ' + res.needs_review, 'success');
+      setCurrentStep(3);
+    } else toast(res.message || 'فشل في التوزيع', 'error');
   };
 
-  // ── STEP 3: Confirm ──────────────────────────────────────────────────────
   const handleConfirm = async () => {
-    if (!importId) { addToast('قم بالتوزيع أولاً', 'warning'); return; }
-    if (!window.confirm('هل تريد تأكيد واعتماد الجدول؟ سيتم حفظ الامتحانات في النظام.')) return;
-
+    if (!importId) { toast('قم بالتوزيع أولاً', 'warning'); return; }
+    if (!window.confirm('هل تريد تأكيد واعتماد الجدول؟')) return;
     setLoading('confirm');
     const res = await finalComputerizedImportsAPI.confirm(importId);
     setLoading('');
-
     if (res.success) {
       await loadRows(importId);
-      addToast(`تم اعتماد ${res.imported} امتحان بنجاح`, 'success');
-    } else {
-      addToast(res.message || 'فشل في الاعتماد', 'error');
-    }
+      toast('تم اعتماد ' + res.imported + ' امتحان بنجاح', 'success');
+    } else toast(res.message || 'فشل في الاعتماد', 'error');
   };
 
-  // ── STEP 4: Export ───────────────────────────────────────────────────────
   const handleExport = () => {
-    if (!importId) { addToast('قم بالتوزيع أولاً', 'warning'); return; }
+    if (!importId) { toast('قم بالتوزيع أولاً', 'warning'); return; }
     finalComputerizedImportsAPI.exportExcel(importId);
   };
 
-  // ── Drag & Drop ──────────────────────────────────────────────────────────
-  const onDrop = useCallback((e) => {
-    e.preventDefault();
-    setDragOver(false);
-    const f = e.dataTransfer.files[0];
-    if (f) setFile(f);
-  }, []);
+  const onDrop = (e) => {
+    e.preventDefault(); setDragOver(false);
+    const f = e.dataTransfer.files[0]; if (f) setFile(f);
+  };
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  const calcSummary = () => {
+    let valid = 0, warning = 0, conflict = 0, total = rows.length;
+    rows.forEach(r => {
+      if (r.status === 'valid') valid++;
+      else if (r.status === 'warning') warning++;
+      else if (r.status === 'conflict') conflict++;
+    });
+    return { valid, warning, conflict, total };
+  };
+
+  const summary = calcSummary();
+
   return (
     <div className="page" style={{ animation: 'fadeInUp .4s ease-out' }}>
-      {/* Header */}
       <div className="page-header">
         <div>
           <h1 className="page-title">🖥️ استيراد الامتحانات النهائية المحوسبة</h1>
-          <p className="page-subtitle">
-            رفع جدول الامتحانات النهائية وتوزيع المختبرات تلقائيًا حسب الأولوية والسعة
-          </p>
+          <p className="page-subtitle">رفع جدول الامتحانات النهائية وتوزيع المختبرات تلقائيًا حسب الأولوية والسعة</p>
         </div>
       </div>
 
-      {/* Upload Card */}
+      <div className="stepper" style={{ marginBottom: 24 }}>
+        <div className={`step ${currentStep >= 1 ? 'active' : ''}`}>
+          <div className="step-circle">1</div>
+          <div className="step-label">رفع وقراءة الملف</div>
+        </div>
+        <div className={`step-line ${currentStep >= 2 ? 'active' : ''}`}></div>
+        <div className={`step ${currentStep >= 2 ? 'active' : ''}`}>
+          <div className="step-circle">2</div>
+          <div className="step-label">توزيع المختبرات الذكي</div>
+        </div>
+        <div className={`step-line ${currentStep >= 3 ? 'active' : ''}`}></div>
+        <div className={`step ${currentStep >= 3 ? 'active' : ''}`}>
+          <div className="step-circle">3</div>
+          <div className="step-label">مراجعة واعتماد</div>
+        </div>
+      </div>
+
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="card-header">
-          <span className="card-title">📂 إعدادات الاستيراد</span>
-          <span className="badge badge-info">استيراد مستقل</span>
+          <span className="card-title">⚙️ إعدادات الاستيراد والتوزيع</span>
         </div>
-
         <div className="form-row" style={{ marginBottom: 20 }}>
           <div className="form-group">
-            <label className="form-label">العام الأكاديمي</label>
-            <input className="form-control" value={form.academic_year}
-              onChange={e => setField('academic_year', e.target.value)} />
+            <label className="form-label">العام الجامعي</label>
+            <input type="text" className="form-control" value={form.academic_year} onChange={e => setForm({ ...form, academic_year: e.target.value })} />
           </div>
           <div className="form-group">
             <label className="form-label">الفصل الدراسي</label>
-            <select className="form-control" value={form.semester}
-              onChange={e => setField('semester', e.target.value)}>
-              <option value="1">الأول</option>
-              <option value="2">الثاني</option>
-              <option value="summer">الصيفي</option>
+            <select className="form-control" value={form.semester} onChange={e => setForm({ ...form, semester: e.target.value })}>
+              <option value="First">الأول</option>
+              <option value="Second">الثاني</option>
+              <option value="Summer">الصيفي</option>
             </select>
           </div>
           <div className="form-group">
             <label className="form-label">فترة الامتحان</label>
-            <select className="form-control" value={form.exam_period}
-              onChange={e => setField('exam_period', e.target.value)}>
-              <option value="final">نهائي</option>
-              <option value="midterm">نصف الفصل</option>
-            </select>
+            <input type="text" className="form-control" value={form.exam_period} disabled />
           </div>
           <div className="form-group">
-            <label className="form-label">الكلية (اختياري)</label>
-            <input className="form-control" value={form.faculty} placeholder="جميع الكليات"
-              onChange={e => setField('faculty', e.target.value)} />
+            <label className="form-label">سعة المكتبة (طالب)</label>
+            <input type="number" className="form-control" value={form.library_threshold} onChange={e => setForm({ ...form, library_threshold: e.target.value })} />
           </div>
         </div>
 
-        {/* File Drop Zone */}
         <div
-          className={`upload-zone${dragOver ? ' dragging' : ''}`}
+          className={`upload-zone ${dragOver ? 'dragging' : ''}`}
           onClick={() => fileRef.current?.click()}
           onDragOver={e => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
-          style={{ marginBottom: 20, cursor: 'pointer' }}
         >
-          <div className="upload-zone-icon">📊</div>
-          <div className="upload-zone-text">
-            {file ? `✅ ${file.name}` : 'اسحب ملف Excel هنا أو اضغط للاختيار'}
-          </div>
+          <div className="upload-zone-icon">{file ? '✅' : '📁'}</div>
+          {file ? (
+            <>
+              <div className="upload-zone-text" style={{ color: 'var(--success)', fontWeight: 600 }}>{file.name}</div>
+              <div className="upload-zone-hint">{(file.size / 1024).toFixed(0)} KB</div>
+            </>
+          ) : (
+            <>
+              <div className="upload-zone-text">اسحب ملف Excel هنا أو انقر للاختيار</div>
+            </>
+          )}
           <div className="upload-zone-hint">xlsx · xls — يجب أن يحتوي على ورقة FINAL أو الأولى</div>
-          <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }}
-            onChange={e => setFile(e.target.files[0])} />
+          <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={e => { setFile(e.target.files[0]); setCurrentStep(1); }} />
         </div>
 
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <button className="btn btn-primary" onClick={handlePreview} disabled={!!loading}>
-            {loading === 'preview' ? <span className="spinner-sm" /> : '🔍'}
-            قراءة ومعاينة الملف
+            {loading === 'preview' ? <span className="spinner-sm"></span> : '🔍'} قراءة ومعاينة الملف
           </button>
-          <button className="btn btn-secondary" onClick={handleAssign}
-            disabled={!!loading || !importId}>
-            {loading === 'assign' ? <span className="spinner-sm" /> : '🤖'}
-            توزيع المختبرات تلقائيًا
+          <button className="btn btn-secondary" onClick={handleAssign} disabled={!!loading || !importId}>
+            {loading === 'assign' ? <span className="spinner-sm"></span> : '🤖'} توزيع المختبرات تلقائيًا
           </button>
-          <button className="btn btn-success" onClick={handleConfirm}
-            disabled={!!loading || !importId}>
-            {loading === 'confirm' ? <span className="spinner-sm" /> : '✅'}
-            تأكيد واعتماد الجدول
+          <button className="btn btn-success" onClick={handleConfirm} disabled={!!loading || !importId}>
+            {loading === 'confirm' ? <span className="spinner-sm"></span> : '✅'} تأكيد واعتماد الجدول
           </button>
-          <button className="btn btn-secondary" onClick={handleExport}
-            disabled={!importId} style={{ marginRight: 'auto' }}>
-            📥 تصدير Excel بعد التوزيع
+          <button className="btn btn-excel" onClick={handleExport} disabled={!importId} style={{ marginRight: 'auto' }}>
+            📥 تصدير Excel
           </button>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      {summary && (
+      {rows.length > 0 && (
         <div className="stats-grid" style={{ marginBottom: 24 }}>
           <div className="stat-card primary">
-            <div className="stat-icon">📋</div>
+            <div className="stat-icon">📑</div>
             <div className="stat-value">{summary.total}</div>
             <div className="stat-label">إجمالي الامتحانات</div>
           </div>
-          <div className="stat-card info">
-            <div className="stat-icon">👥</div>
-            <div className="stat-value">{summary.students}</div>
-            <div className="stat-label">إجمالي الطلبة</div>
-          </div>
           <div className="stat-card success">
             <div className="stat-icon">✅</div>
-            <div className="stat-value">{summary.assigned}</div>
-            <div className="stat-label">تم التوزيع</div>
+            <div className="stat-value">{summary.valid}</div>
+            <div className="stat-label">جاهز للاعتماد</div>
           </div>
           <div className="stat-card warning">
             <div className="stat-icon">⚠️</div>
-            <div className="stat-value">{summary.review}</div>
-            <div className="stat-label">يحتاج مراجعة</div>
+            <div className="stat-value">{summary.warning}</div>
+            <div className="stat-label">تحتاج مراجعة سعة</div>
           </div>
           <div className="stat-card danger">
             <div className="stat-icon">❌</div>
-            <div className="stat-value">{summary.conflicts}</div>
-            <div className="stat-label">تعارضات</div>
-          </div>
-          <div className="stat-card danger">
-            <div className="stat-icon">📉</div>
-            <div className="stat-value">{summary.capIssue}</div>
-            <div className="stat-label">سعة غير كافية</div>
+            <div className="stat-value">{summary.conflict}</div>
+            <div className="stat-label">تعارض مختبرات</div>
           </div>
         </div>
       )}
 
-      {/* Preview Table */}
       {rows.length > 0 && (
         <div className="table-container">
           <div className="table-header">
-            <span style={{ fontWeight: 700 }}>📋 معاينة الجدول — {rows.length} سطر</span>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>معاينة وتوزيع المختبرات</h3>
+            <span className="badge badge-gray">{rows.length} امتحانات</span>
           </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table>
-              <thead>
+          <div style={{ overflowX: 'auto', maxHeight: 500, overflowY: 'auto' }}>
+            <table style={{ minWidth: 1100 }}>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <tr>
-                  <th>#</th>
-                  <th>رقم المادة</th>
-                  <th>ش</th>
-                  <th>اسم المادة</th>
-                  <th>المحاضر</th>
-                  <th>الطلبة</th>
-                  <th>طبيعة</th>
-                  <th>منصة</th>
-                  <th>اليوم</th>
-                  <th>التاريخ</th>
-                  <th>الوقت</th>
-                  <th>المختبرات المقترحة</th>
-                  <th>السعة</th>
-                  <th>الحالة</th>
-                  <th>ملاحظات</th>
+                  <th style={{ width: 60 }}>#</th>
+                  <th style={{ width: 140 }}>المادة</th>
+                  <th>الشعب والمحاضرين</th>
+                  <th style={{ width: 160 }}>الوقت</th>
+                  <th style={{ width: 300 }}>المختبرات المقترحة</th>
+                  <th style={{ width: 100, textAlign: 'center' }}>الطلبة/السعة</th>
+                  <th style={{ width: 100, textAlign: 'center' }}>الحالة</th>
                 </tr>
               </thead>
               <tbody>
-                {(() => {
-                  // Group rows by date + start_time + end_time for visual separators
-                  const elements = [];
-                  let lastGroupKey = null;
-                  let groupColor = 0;
+                {rows.map((row, i) => {
+                  const labs = parseJson(row.assigned_labs, []);
+                  const st = row.status;
+                  const timeStr = row.start_time && row.end_time ? (row.start_time.slice(0, 5) + ' - ' + row.end_time.slice(0, 5)) : '—';
+                  const totalCap = labs.reduce((s, l) => s + (l.capacity || 0), 0);
+                  const diff = totalCap - (row.student_count || 0);
 
-                  const GROUP_COLORS = [
-                    'rgba(99, 102, 241, 0.06)',   // indigo tint
-                    'rgba(14, 165, 233, 0.06)',   // sky tint
-                    'rgba(16, 185, 129, 0.06)',   // green tint
-                    'rgba(245, 158, 11, 0.06)',   // amber tint
-                    'rgba(244, 63, 94, 0.06)',    // rose tint
-                  ];
-
-                  rows.forEach((row, i) => {
-                    const gKey = `${row.exam_date}||${row.start_time}||${row.end_time}`;
-                    const isNewGroup = gKey !== lastGroupKey;
-
-                    if (isNewGroup && lastGroupKey !== null) {
-                      // Blue separator row between groups
-                      elements.push(
-                        <tr key={`sep-${i}`}>
-                          <td colSpan={15} style={{
-                            background: 'linear-gradient(90deg, var(--primary), var(--accent))',
-                            height: 3,
-                            padding: 0,
-                            border: 'none',
-                          }} />
-                        </tr>
-                      );
-                      groupColor = (groupColor + 1) % GROUP_COLORS.length;
-                    }
-
-                    if (isNewGroup) lastGroupKey = gKey;
-
-                    const labs    = parseJson(row.assigned_labs, []);
-                    const warns   = parseJson(row.warnings, []);
-                    const errs    = parseJson(row.errors, []);
-                    const st      = STATUS_BADGE[row.status] || { cls: 'badge-gray', label: row.status };
-                    const timeStr = row.start_time && row.end_time
-                      ? `${row.start_time?.slice(0,5)} - ${row.end_time?.slice(0,5)}`
-                      : '—';
-                    const totalCap = labs.reduce((s, l) => s + (l.capacity || 0), 0);
-                    const diff     = totalCap - (row.student_count || 0);
-
-                    elements.push(
-                      <tr key={row.id}
-                        style={{
-                          background: row.status === 'invalid' ? 'rgba(244,63,94,0.04)' : GROUP_COLORS[groupColor],
-                          opacity: row.status === 'invalid' ? .6 : 1,
-                        }}
-                      >
-                        <td style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>{row.row_number}</td>
-                        <td><code style={{ fontSize: '.82rem' }}>{row.course_code}</code></td>
-                        <td>{row.section_number || '—'}</td>
-                        <td style={{ maxWidth: 160 }}>{row.course_name}</td>
-                        <td style={{ maxWidth: 140, fontSize: '.85rem' }}>{row.instructor_name || '—'}</td>
-                        <td style={{ textAlign: 'center', fontWeight: 700 }}>{row.student_count}</td>
-                        <td>{row.exam_type || '—'}</td>
-                        <td>{row.platform || '—'}</td>
-                        <td>{row.day || '—'}</td>
-                        <td style={{ whiteSpace: 'nowrap' }}>{row.exam_date || '—'}</td>
-                        <td style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{timeStr}</td>
-                        <td style={{ maxWidth: 220 }}>
-                          {labs.length > 0
-                            ? labs.map((l, li) => {
-                                const pb = PRIORITY_BADGE[l.priority_group] || PRIORITY_BADGE.other;
-                                return (
-                                  <span key={li} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 3, marginLeft: 6 }}>
-                                    <span className={`badge ${pb.cls}`} style={{ fontSize: '.68rem' }}>{pb.label}</span>
-                                    <span style={{ fontSize: '.82rem', fontWeight: 600 }}>{l.lab_name}</span>
-                                    {l.capacity ? <span style={{ color: 'var(--text-muted)', fontSize: '.72rem' }}>({l.capacity})</span> : null}
-                                  </span>
-                                );
-                              })
-                            : <span style={{ color: 'var(--text-muted)' }}>—</span>
-                          }
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          {totalCap > 0 && (
-                            <span style={{
-                              color: diff >= 0 ? 'var(--success)' : 'var(--danger)',
-                              fontWeight: 700,
-                              fontSize: '.85rem',
-                            }}>
-                              {totalCap}
-                              <span style={{ fontSize: '.72rem', fontWeight: 400 }}>
-                                {diff >= 0 ? ` (+${diff})` : ` (${diff})`}
+                  return (
+                    <tr key={row.id} style={{ background: st === 'invalid' ? 'rgba(239,68,68,.07)' : 'transparent', opacity: st === 'invalid' ? 0.6 : 1 }}>
+                      <td style={{ color: 'var(--text-muted)', fontSize: '.78rem' }}>{row.row_number}</td>
+                      <td><code style={{ fontSize: '.82rem', color: 'var(--primary)', fontWeight: 700 }}>{row.course_code}</code></td>
+                      <td>
+                        <div style={{ fontSize: '.85rem', fontWeight: 600 }}>{row.course_name}</div>
+                        <div style={{ fontSize: '.75rem', color: 'var(--text-secondary)' }}>شعب: {row.sections} | المحاضر: {row.instructors}</div>
+                      </td>
+                      <td>
+                        <div style={{ fontSize: '.85rem', fontWeight: 600 }}>{row.exam_date || row.day}</div>
+                        <div style={{ fontSize: '.75rem', color: 'var(--accent)' }}>{timeStr}</div>
+                      </td>
+                      <td>
+                        {labs.length > 0 ? (
+                          <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+                            {labs.map((l, li) => (
+                              <span key={li} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 3, marginLeft: 6 }}>
+                                <span className="badge badge-gray" style={{ fontSize: '.65rem' }}>{l.priority_group}</span>
+                                <span style={{ fontSize: '.82rem', fontWeight: 600 }}>{l.lab_name}</span>
+                                {l.capacity ? <span style={{ color: 'var(--text-muted)', fontSize: '.7rem' }}>({l.capacity})</span> : null}
                               </span>
-                            </span>
-                          )}
-                          {totalCap === 0 && '—'}
-                        </td>
-                        <td><span className={`badge ${st.cls}`}>{st.label}</span></td>
-                        <td style={{ maxWidth: 200, fontSize: '.8rem' }}>
-                          {errs.length > 0 && (
-                            <div style={{ color: 'var(--danger)' }}>
-                              {errs.map((e, ei) => <div key={ei}>❌ {e}</div>)}
-                            </div>
-                          )}
-                          {warns.length > 0 && (
-                            <div style={{ color: 'var(--warning)', marginTop: errs.length ? 4 : 0 }}>
-                              {warns.map((w, wi) => <div key={wi}>⚠️ {w}</div>)}
-                            </div>
-                          )}
-                          {!errs.length && !warns.length && '—'}
-                        </td>
-                      </tr>
-                    );
-                  });
-
-                  return elements;
-                })()}
-
+                            ))}
+                          </div>
+                        ) : <span style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>لم يتم التوزيع</span>}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        {totalCap > 0 ? <span style={{ color: diff >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 700, fontSize: '.85rem' }}>{totalCap}<span style={{ fontSize: '.72rem', fontWeight: 400 }}>({diff >= 0 ? '+' : ''}{diff})</span></span> : '—'}
+                      </td>
+                      <td style={{ textAlign: 'center' }}><span className={"badge " + (st === 'valid' ? 'badge-success' : st === 'conflict' ? 'badge-danger' : 'badge-warning')}>{st}</span></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* Empty state */}
-      {rows.length === 0 && !loading && (
+      {rows.length === 0 && loading !== 'rows' && (
         <div className="empty-state">
           <div className="empty-state-icon">🖥️</div>
           <h3>لا توجد بيانات بعد</h3>
-          <p>ارفع ملف Excel للامتحانات النهائية ثم اضغط "قراءة ومعاينة الملف"</p>
+          <p>ارفع ملف Excel للامتحانات النهائية ثم اضغط قراءة ومعاينة الملف</p>
         </div>
       )}
     </div>
   );
-}
-
-function parseJson(val, fallback) {
-  if (!val) return fallback;
-  if (typeof val === 'object') return val;
-  try { return JSON.parse(val); } catch { return fallback; }
 }

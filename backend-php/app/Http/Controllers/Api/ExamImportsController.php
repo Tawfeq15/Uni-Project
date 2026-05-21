@@ -16,10 +16,11 @@ class ExamImportsController extends Controller
 
     public function preview(Request $request)
     {
-        set_time_limit(0); // Prevent timeout on large files
+        set_time_limit(0);
+        ini_set('memory_limit', '512M');
 
         $validator = Validator::make($request->all(), [
-            'file' => 'required|file|mimes:xlsx,xls,csv',
+            'file'    => 'required|file|mimes:xlsx,xls,csv',
             'faculty' => 'required|string',
         ]);
 
@@ -27,43 +28,55 @@ class ExamImportsController extends Controller
             return response()->json(['success' => false, 'error' => $validator->errors()->first()], 400);
         }
 
-        $importData = $request->only(['faculty', 'academic_year', 'semester', 'exam_period', 'operator_name', 'operator_role']);
-        if ($request->has('column_mapping')) {
-            $importData['column_mapping'] = json_decode($request->input('column_mapping'), true);
-        }
-        
-        $result = $this->importService->previewFile($request->file('file'), $importData);
+        try {
+            $importData = $request->only(['faculty', 'academic_year', 'semester', 'exam_period', 'operator_name', 'operator_role']);
+            if ($request->has('column_mapping')) {
+                $importData['column_mapping'] = json_decode($request->input('column_mapping'), true);
+            }
+            $result = $this->importService->previewFile($request->file('file'), $importData);
+            return response()->json($result, $result['success'] ? 200 : 400);
 
-        return response()->json($result, $result['success'] ? 200 : 400);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('ExamImport preview failed: ' . $e->getMessage(), [
+                'file' => $e->getFile(), 'line' => $e->getLine()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل تحليل الملف: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     // POST /api/exams/import/confirm
     public function confirm(Request $request)
     {
-        set_time_limit(0); // Prevent timeout on large batches
+        set_time_limit(0);
+        ini_set('memory_limit', '512M');
 
-        $importId = $request->input('import_id');
-        $mode = $request->input('mode', 'import_new'); // preview_only, import_new, replace_existing
+        $importId     = $request->input('import_id');
+        $mode         = $request->input('mode', 'import_new');
         $operatorName = $request->input('operator_name', 'Exam Coordinator');
         $operatorRole = $request->input('operator_role', 'admin');
 
         if (!$importId) {
             return response()->json(['success' => false, 'error' => 'رقم الاستيراد مطلوب'], 400);
         }
-
         if ($mode === 'preview_only') {
             return response()->json(['success' => true, 'message' => 'تم حفظ المعاينة بنجاح']);
         }
 
-        $options = [
-            'mode' => $mode,
-            'operator_name' => $operatorName,
-            'operator_role' => $operatorRole,
-        ];
+        try {
+            $options = ['mode' => $mode, 'operator_name' => $operatorName, 'operator_role' => $operatorRole];
+            $result  = $this->importService->confirmImport($importId, $options);
+            return response()->json($result, $result['success'] ? 200 : 400);
 
-        $result = $this->importService->confirmImport($importId, $options);
-
-        return response()->json($result, $result['success'] ? 200 : 400);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('ExamImport confirm failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل اعتماد الاستيراد: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     // GET /api/exams/imports

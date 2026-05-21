@@ -86,8 +86,14 @@ class SchedulingConflictService
 
         $conflicts = array_merge($conflicts, $this->checkBlackoutDates($data));
         $conflicts = array_merge($conflicts, $this->checkRoomConflicts($data));
-        $conflicts = array_merge($conflicts, $this->checkLectureConflicts($data));
-        $conflicts = array_merge($conflicts, $this->checkInstructorConflicts($data));
+
+        // During Final exam period there are NO lectures — skip parsed_sessions checks entirely
+        $isFinalPeriod = in_array(strtolower($data['exam_period'] ?? ''), ['final', 'نهائية', 'final_exam'], true);
+
+        if (!$isFinalPeriod) {
+            $conflicts = array_merge($conflicts, $this->checkLectureConflicts($data));
+        }
+        $conflicts = array_merge($conflicts, $this->checkInstructorConflicts($data, $isFinalPeriod));
         $conflicts = array_merge($conflicts, $this->checkSectionConflicts($data));
         $conflicts = array_merge($conflicts, $this->checkCapacity($data));
 
@@ -684,7 +690,7 @@ class SchedulingConflictService
     // 6. INSTRUCTOR CONFLICTS
     // ─────────────────────────────────────────────────────────────────────
 
-    public function checkInstructorConflicts(array $data): array
+    public function checkInstructorConflicts(array $data, bool $skipLectureCheck = false): array
     {
         $conflicts = [];
         $lecturer = trim($data['lecturer'] ?? '');
@@ -729,6 +735,11 @@ class SchedulingConflictService
                     ]
                 );
             }
+        }
+
+        // During Final exam period: no lectures exist → skip parsed_sessions check
+        if ($skipLectureCheck) {
+            return $conflicts;
         }
 
         // Also check against parsed lecture sessions for the same lecturer

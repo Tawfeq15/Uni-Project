@@ -35,8 +35,39 @@ class ExamScheduleImportService
             'updated_at' => now(),
         ]);
 
-        // Parse Excel
-        $rows = Excel::toArray(new \App\Imports\ScheduleImport(), $file)[0];
+        // Parse Excel - optimized to load only the first sheet to prevent memory and timeout issues
+        try {
+            $realPath = $file->getRealPath();
+            $inputFileType = \PhpOffice\PhpSpreadsheet\IOFactory::identify($realPath);
+            $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReader($inputFileType);
+            $reader->setReadDataOnly(true);
+
+            // Get sheet names and only load the target sheet
+            $sheetNames = $reader->listWorksheetNames($realPath);
+            $targetSheet = null;
+            foreach ($sheetNames as $name) {
+                if (strtoupper(trim($name)) === 'FINAL') {
+                    $targetSheet = $name;
+                    break;
+                }
+            }
+
+            if (!$targetSheet && !empty($sheetNames)) {
+                $targetSheet = $sheetNames[0];
+            }
+
+            if ($targetSheet) {
+                $reader->setLoadSheetsOnly([$targetSheet]);
+            }
+
+            $spreadsheet = $reader->load($realPath);
+            $worksheet = $spreadsheet->getActiveSheet();
+            $rows = $worksheet->toArray(null, true, true, false);
+        } catch (\Throwable $e) {
+            Log::error('PhpSpreadsheet parse failed: ' . $e->getMessage());
+            return ['success' => false, 'message' => 'فشل قراءة ملف الاكسل: ' . $e->getMessage()];
+        }
+
         if (empty($rows)) {
             return ['success' => false, 'message' => 'الملف فارغ أو غير صالح'];
         }

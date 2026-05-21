@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 
 const NAV_ITEMS = [
   { group: 'الرئيسية', items: [
@@ -8,14 +8,14 @@ const NAV_ITEMS = [
   { group: 'البيانات', items: [
     { to: '/uploads',                    icon: '📤', label: 'رفع الملفات' },
     { to: '/exam-imports',               icon: '📥', label: 'استيراد الجداول' },
-    { to: '/final-computerized-import',  icon: '🖥️', label: 'استيراد النهائي المحوسب' },
+    { to: '/final-computerized-import',  icon: '🖥️', label: 'الاستيراد المحوسب' },
   ]},
   { group: 'الجدولة', items: [
     { to: '/availability', icon: '🏫', label: 'القاعات المتاحة' },
-    { to: '/new-exam', icon: '➕', label: 'طلب اختبار جديد' },
-    { to: '/conflicts', icon: '⚠️', label: 'التعارضات' },
-    { to: '/schedule', icon: '🗓️', label: 'الجدول النهائي' },
-    { to: '/calendar', icon: '📅', label: 'التقويم الشامل' },
+    { to: '/new-exam',     icon: '➕', label: 'طلب اختبار جديد' },
+    { to: '/conflicts',    icon: '⚠️', label: 'التعارضات' },
+    { to: '/schedule',     icon: '🗓️', label: 'الجدول النهائي' },
+    { to: '/calendar',     icon: '📅', label: 'التقويم الشامل' },
   ]},
 ];
 
@@ -25,7 +25,7 @@ export default function Sidebar() {
       <div className="sidebar-logo">
         <div className="sidebar-logo-icon">🎓</div>
         <div className="sidebar-logo-text">
-          <h2>Exam Scheduler</h2>
+          <h2>Exam Scheduler Pro</h2>
           <span>نظام جدولة الاختبارات</span>
         </div>
       </div>
@@ -50,7 +50,8 @@ export default function Sidebar() {
       </div>
 
       <div className="sidebar-footer">
-        جامعة ● نظام جدولة الاختبارات v1.0
+        <div style={{ marginBottom: 4, color: 'var(--primary)', fontWeight: 600 }}>● نظام جامعي متكامل</div>
+        <div>Exam Scheduler Pro v2.0</div>
       </div>
     </nav>
   );

@@ -605,22 +605,39 @@ class FinalComputerizedExamImportService
 
     private function readExcelRows(UploadedFile $file): array
     {
-        $spreadsheet = IOFactory::load($file->getRealPath());
-        $sheetNames  = $spreadsheet->getSheetNames();
+        try {
+            $realPath = $file->getRealPath();
+            $inputFileType = IOFactory::identify($realPath);
+            $reader = IOFactory::createReader($inputFileType);
+            $reader->setReadDataOnly(true);
 
-        // Prefer FINAL sheet
-        $sheet = null;
-        foreach ($sheetNames as $name) {
-            if (strtoupper(trim($name)) === 'FINAL') {
-                $sheet = $spreadsheet->getSheetByName($name);
-                break;
+            // Get sheet names and only load the target sheet
+            $sheetNames = $reader->listWorksheetNames($realPath);
+            
+            $targetSheet = null;
+            foreach ($sheetNames as $name) {
+                if (strtoupper(trim($name)) === 'FINAL') {
+                    $targetSheet = $name;
+                    break;
+                }
             }
-        }
-        if (!$sheet) {
-            $sheet = $spreadsheet->getActiveSheet();
-        }
 
-        return $sheet->toArray(null, true, true, false);
+            if (!$targetSheet && !empty($sheetNames)) {
+                $targetSheet = $sheetNames[0];
+            }
+
+            if ($targetSheet) {
+                $reader->setLoadSheetsOnly([$targetSheet]);
+            }
+
+            $spreadsheet = $reader->load($realPath);
+            $sheet = $spreadsheet->getActiveSheet();
+
+            return $sheet->toArray(null, true, true, false);
+        } catch (\Throwable $e) {
+            Log::error('FinalComputerizedImport readExcelRows failed: ' . $e->getMessage());
+            throw $e;
+        }
     }
 
     private function mapRows(array $rawRows): array

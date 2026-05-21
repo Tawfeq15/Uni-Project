@@ -9,6 +9,11 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
+        proxyTimeout: 0,        // no timeout — allow long PHP imports
+        timeout: 0,             // no socket timeout
+        configure: (proxy) => {
+          proxy.on('error', (err) => console.error('[Proxy Error]', err.message));
+        },
       },
     },
   },

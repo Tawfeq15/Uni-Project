@@ -140,7 +140,15 @@ export const examsAPI = {
 
 // ── Exam Schedule Imports (From Other Faculties) ──────────────
 export const examImportsAPI = {
-  preview: (formData) => fetch(`${API_BASE}/exams/import/preview`, { method: 'POST', body: formData }).then(r => r.json()),
+  preview: (formData) => fetch(`${API_BASE}/exams/import/preview`, { method: 'POST', body: formData })
+    .then(async r => {
+      const text = await r.text();
+      try { return JSON.parse(text); }
+      catch { 
+          const snippet = text.substring(0, 150).replace(/<[^>]+>/g, '');
+          return { success: false, message: `خطأ في الخادم (${r.status}) — ${snippet}` }; 
+      }
+    }),
   confirm: (data) => request('/exams/import/confirm', { method: 'POST', body: JSON.stringify(withOperator(data)) }),
   list:    () => request('/exams/imports'),
   show:    (id) => request(`/exams/imports/${id}`),
@@ -239,25 +247,23 @@ export function formatConflictErrors(err) {
 export const finalComputerizedImportsAPI = {
   preview: (formData) =>
     fetch(`${API_BASE}/final-computerized-imports/preview`, { method: 'POST', body: formData })
-      .then(r => r.json()),
+      .then(async r => {
+        const text = await r.text();
+        try { return JSON.parse(text); }
+        catch { 
+          const snippet = text.substring(0, 150).replace(/<[^>]+>/g, '');
+          return { success: false, message: `خطأ في الخادم (${r.status}) — ${snippet}` }; 
+        }
+      }),
 
   assignLabs: (id) =>
     request(`/final-computerized-imports/${id}/assign-labs`, { method: 'POST', body: JSON.stringify({}) }),
 
-  confirm: (id) =>
-    request(`/final-computerized-imports/${id}/confirm`, {
-      method: 'POST',
-      body: JSON.stringify(withOperator({})),
-    }),
-
+  confirm: (id) => request(`/final-computerized-imports/${id}/confirm`, { method: 'POST' }),
   list: () => request('/final-computerized-imports'),
-
   show: (id) => request(`/final-computerized-imports/${id}`),
-
   rows: (id) => request(`/final-computerized-imports/${id}/rows`),
-
-  exportExcel: (id) =>
-    window.open(`${API_BASE}/final-computerized-imports/${id}/export-excel`, '_blank'),
+  exportExcel: (id) => { window.location.href = `${API_BASE}/final-computerized-imports/${id}/export-excel`; },
 
   availableLabs: () => request('/final-computerized-imports/available-labs'),
 };

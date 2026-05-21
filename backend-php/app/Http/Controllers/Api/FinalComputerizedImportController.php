@@ -18,36 +18,47 @@ class FinalComputerizedImportController extends Controller
     // POST /api/final-computerized-imports/preview
     public function preview(Request $request)
     {
-        set_time_limit(120);
+        set_time_limit(0);
+        ini_set('memory_limit', '512M');
 
         if (!$request->hasFile('file')) {
             return response()->json(['success' => false, 'message' => 'الملف مطلوب'], 400);
         }
 
-        $settings = $request->only([
-            'academic_year','semester','exam_period','faculty',
-            'operator_name','operator_role',
-        ]);
-
-        $result = $this->importService->previewImport($request->file('file'), $settings);
-
-        return response()->json($result, $result['success'] ? 200 : 400);
+        try {
+            $settings = $request->only(['academic_year','semester','exam_period','faculty','operator_name','operator_role']);
+            $result   = $this->importService->previewImport($request->file('file'), $settings);
+            return response()->json($result, $result['success'] ? 200 : 400);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('FCI preview failed: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'فشل قراءة الملف: ' . $e->getMessage()], 500);
+        }
     }
 
     // POST /api/final-computerized-imports/{id}/assign-labs
     public function assignLabs(Request $request, int $id)
     {
-        set_time_limit(120);
-        $result = $this->importService->assignLabs($id);
-        return response()->json($result, $result['success'] ? 200 : 400);
+        set_time_limit(0);
+        try {
+            $result = $this->importService->assignLabs($id);
+            return response()->json($result, $result['success'] ? 200 : 400);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('FCI assignLabs failed: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'فشل التوزيع: ' . $e->getMessage()], 500);
+        }
     }
 
     // POST /api/final-computerized-imports/{id}/confirm
     public function confirm(Request $request, int $id)
     {
-        set_time_limit(120);
-        $result = $this->importService->confirmImport($id, $request->all());
-        return response()->json($result, $result['success'] ? 200 : 400);
+        set_time_limit(0);
+        try {
+            $result = $this->importService->confirmImport($id, $request->all());
+            return response()->json($result, $result['success'] ? 200 : 400);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('FCI confirm failed: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'فشل الاعتماد: ' . $e->getMessage()], 500);
+        }
     }
 
     // GET /api/final-computerized-imports
